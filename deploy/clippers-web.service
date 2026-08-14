@@ -9,6 +9,7 @@ User=ubuntu
 Group=ubuntu
 WorkingDirectory=/srv/clippers/current
 EnvironmentFile=/srv/clippers/.env
+EnvironmentFile=/srv/paperlab-publish/deploy/server.env
 Environment=CLIPPERS_CONFIG_DIR=/srv/clippers/config
 Environment=CLIPPERS_DATA_DIR=/srv/clippers/data
 Environment=CLIPPERS_SECRET_DIR=/srv/clippers/secrets

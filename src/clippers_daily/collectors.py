@@ -247,8 +247,15 @@ class Collector:
                     "claim_status": "primary_source", "metadata_available": parse_status == "complete"},
                 ))
             records.sort(key=lambda item: item.published_at or cutoff, reverse=True)
-            return records, RunReport(source_id=source["id"], channel_id=channel["id"], status="success",
-                                      fetched=len(soup.find_all("url")), selected=len(records), filtered=max(0, len(soup.find_all("url")) - len(records)))
+            complete = sum(record.parse_status == "complete" for record in records)
+            degraded = bool(records) and complete == 0
+            return records, RunReport(
+                source_id=source["id"], channel_id=channel["id"],
+                status="degraded" if degraded else "success",
+                fetched=len(soup.find_all("url")), parsed=complete, selected=len(records),
+                filtered=max(0, len(soup.find_all("url")) - len(records)),
+                error=("官方 sitemap 正常，但近期文章页全部返回数据服务占位内容；候选已保留为 partial，"
+                       "不会进入日报。" if degraded else None))
         except Exception as exc:
             return [], RunReport(source_id=source["id"], channel_id=channel["id"], status="fetch_error", error=str(exc)[:500])
 

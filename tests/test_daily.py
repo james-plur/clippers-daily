@@ -47,6 +47,24 @@ def test_machine_heart_gzip_sitemap(monkeypatch):
     assert records[0].language == "zh-CN"
 
 
+def test_machine_heart_placeholder_is_degraded(monkeypatch):
+    today = datetime.now(timezone.utc).date().isoformat()
+    xml = f"<urlset><url><loc>https://www.jiqizhixin.com/articles/{today}-1</loc></url></urlset>"
+    class Response:
+        def __init__(self, content=b"", text=""):
+            self.content, self.text, self.status_code = content, text, 200
+        def raise_for_status(self): pass
+    collector = Collector()
+    monkeypatch.setattr(collector.client, "get", lambda url, **kwargs: Response(gzip.compress(xml.encode())) if url.endswith(".gz") else Response(text="<title>机器之心·数据服务</title>"))
+    source = {"id":"jiqizhixin","name":"机器之心","language":"zh-CN","priority":"P0"}
+    channel = {"id":"website","endpoint":"https://www.jiqizhixin.com/shared/sitemap.xml.gz","url_filter":"/articles/",
+               "article_date_pattern":r"/articles/(\d{4}-\d{2}-\d{2})","priority":"P0"}
+    records, report = collector.gzip_sitemap(source, channel)
+    assert report.status == "degraded" and report.parsed == 0
+    assert records[0].parse_status == "partial"
+    assert "不会进入日报" in report.error
+
+
 def test_deepseek_sitemap_uses_slug_date(monkeypatch):
     class Response:
         content = b'<urlset><url><loc>https://api-docs.deepseek.com/news/news260813</loc></url></urlset>'

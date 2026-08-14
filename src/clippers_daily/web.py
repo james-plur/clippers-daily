@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import sqlite3
 import subprocess
 import threading
@@ -366,6 +367,28 @@ def create_app() -> FastAPI:
         subprocess.Popen(command, start_new_session=True)
         audit("paperlab.sync", "paperlab", {})
         return {"ok": True, "status": "started"}
+
+    @app.api_route("/api/sync/{path:path}", methods=["GET", "HEAD", "POST"])
+    async def paperlab_device_sync(path: str, request: Request) -> Response:
+        # Keep the existing device protocol public while never exposing PaperLab's
+        # administrator-only sync status, conflict or device-registration routes.
+        if not (path in {"handshake", "pull", "push"} or re.fullmatch(r"objects/[0-9a-f]{64}", path)):
+            raise HTTPException(404, "sync route not found")
+        if request.method == "POST" and path != "push":
+            raise HTTPException(405, "method not allowed")
+        runtime = CONFIG.read("runtime")
+        upstream = runtime.get("paperlab_proxy", {}).get("upstream", "http://127.0.0.1:8765")
+        url = f"{upstream.rstrip('/')}/api/sync/{path}"
+        if request.url.query:
+            url += "?" + request.url.query
+        headers = {key: value for key, value in request.headers.items()
+                   if key.lower() not in {"host", "content-length", "cookie"}}
+        async with httpx.AsyncClient(timeout=3600, follow_redirects=False) as client:
+            result = await client.request(request.method, url, headers=headers, content=await request.body())
+        response_headers = {key: value for key, value in result.headers.items()
+                            if key.lower() not in {"content-length", "content-encoding", "transfer-encoding",
+                                                   "connection", "set-cookie"}}
+        return Response(result.content, status_code=result.status_code, headers=response_headers)
 
     @app.get("/paperlab")
     def paperlab_redirect(session: Session = Depends(current_session)) -> RedirectResponse:

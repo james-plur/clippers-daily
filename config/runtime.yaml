@@ -1,0 +1,52 @@
+version: 1
+timezone: Asia/Shanghai
+target_items: 7
+lookback_hours: 36
+history_days: 30
+fallback_days: 7
+minimum_deepseek_items: 1
+minimum_zh_media_items: 1
+minimum_media_items: 1
+minimum_paper_items: 1
+request_timeout_seconds: 30
+collection_workers: 8
+output_dir: data/reports
+database: data/clippers.db
+paperlab:
+  cli: /srv/paperlab-local/current/.venv/bin/paperlab-local
+  config: /srv/paperlab-publish/topics.yaml
+  database: /srv/paperlab-publish/data/papers.db
+email:
+  subject_template: "AI基础设施日报 - {date}"
+  active_sender: default
+  senders:
+    - id: default
+      enabled: true
+      host: smtp.qq.com
+      port: 465
+      username_env: CLIPPERS_SMTP_SENDER
+      password_file: /srv/clippers/secrets/qq_smtp_password
+  recipients: []
+llm:
+  providers:
+    - {id: zhipu, enabled: true, base_url: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4.7-flash", api_key_env: ZHIPU_API_KEY}
+    - {id: deepseek, enabled: true, base_url: "https://api.deepseek.com", model: "deepseek-v4-flash", api_key_env: DEEPSEEK_API_KEY}
+git:
+  remote: git@github.com:james-plur/clippers-daily.git
+  branch: main
+  author_name: JamiePlur
+  author_email: 125025036@qq.com
+  auto_sync: false
+web:
+  host: 127.0.0.1
+  port: 8766
+  session_ttl_seconds: 86400
+  log_retention_days: 90
+paperlab_proxy:
+  base_path: /paperlab
+  upstream: http://127.0.0.1:8765
+notes:
+  enabled: true
+  repo_path: /srv/clippers-notes
+  inbox_dir: _inbox/日报
+  branch: main

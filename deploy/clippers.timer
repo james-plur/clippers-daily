@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Clippers daily at 08:00 Asia/Shanghai
+
+[Timer]
+OnCalendar=*-*-* 08:00:00 Asia/Shanghai
+Persistent=true
+RandomizedDelaySec=120
+Unit=clippers.service
+
+[Install]
+WantedBy=timers.target
+

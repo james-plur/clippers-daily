@@ -1,0 +1,25 @@
+[Unit]
+Description=Clippers administration console and PaperLab gateway
+After=network-online.target paperlab.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/srv/clippers/current
+EnvironmentFile=/srv/clippers/.env
+Environment=CLIPPERS_CONFIG_DIR=/srv/clippers/config
+Environment=CLIPPERS_DATA_DIR=/srv/clippers/data
+Environment=CLIPPERS_SECRET_DIR=/srv/clippers/secrets
+ExecStart=/srv/clippers/current/.venv/bin/clippers-web
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/srv/clippers/data /srv/clippers/config /srv/clippers/secrets
+
+[Install]
+WantedBy=multi-user.target

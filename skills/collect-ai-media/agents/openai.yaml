@@ -1,0 +1,4 @@
+interface:
+  display_name: "Collect AI Media"
+  short_description: "Collect and rank independent AI media reporting"
+  default_prompt: "Collect enabled Chinese and English AI media updates from config/media.yaml, deduplicate them against primary sources, and return evidence-backed digest candidates."

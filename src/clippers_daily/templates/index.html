@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Clippers Console</title>
+  <meta name="description" content="Clippers 日报、来源与 PaperLab 管理控制台">
+  <link rel="stylesheet" href="/static/console.css?v=2">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">C</div><div><strong>CLIPPERS</strong><small>DAILY CONTROL</small></div></div>
+      <nav id="nav">
+        <button data-page="dashboard" class="active"><span>01</span>总览</button>
+        <button data-page="digests"><span>02</span>历史日报</button>
+        <button data-page="sources"><span>03</span>信息源</button>
+        <button data-page="config"><span>04</span>配置中心</button>
+        <button data-page="mail"><span>05</span>邮件与模型</button>
+        <button data-page="git"><span>06</span>Git</button>
+        <button data-page="logs"><span>07</span>运行日志</button>
+        <button data-page="paperlab"><span>08</span>PaperLab</button>
+      </nav>
+      <div class="sidebar-foot"><span class="live-dot"></span><span>SERVER ONLINE</span><button id="logout" title="退出登录">退出</button></div>
+    </aside>
+    <main class="content">
+      <header class="topbar"><div><p class="eyebrow">AI INFRASTRUCTURE INTELLIGENCE</p><h1 id="page-title">运行总览</h1></div><div class="top-actions"><button class="secondary" id="preview">生成预览</button><button class="primary" id="send">生成并发送</button></div></header>
+
+      <section class="page active" id="page-dashboard">
+        <div class="metric-grid" id="metrics"></div>
+        <div class="split-grid">
+          <article class="panel"><div class="panel-head"><div><p class="eyebrow">LATEST EDITIONS</p><h2>最近日报</h2></div><button class="text-btn" data-go="digests">查看全部 →</button></div><div id="recent-digests" class="list"></div></article>
+          <article class="panel"><div class="panel-head"><div><p class="eyebrow">SOURCE PULSE</p><h2>来源健康</h2></div><button class="text-btn" data-go="sources">诊断 →</button></div><div id="health-list" class="health-list"></div></article>
+        </div>
+      </section>
+
+      <section class="page" id="page-digests">
+        <div class="master-detail"><article class="panel master"><div class="panel-head"><div><p class="eyebrow">ARCHIVE</p><h2>历史日报</h2></div></div><div id="digest-list" class="list"></div></article><article class="panel detail" id="digest-detail"><div class="empty">选择一份日报查看详情与评分</div></article></div>
+      </section>
+
+      <section class="page" id="page-sources">
+        <article class="panel"><div class="panel-head"><div><p class="eyebrow">COLLECTORS</p><h2>信息源管理</h2></div><div class="inline-form"><input id="source-test-id" placeholder="source id"><button class="secondary" id="source-test">单源预检</button></div></div><div class="table-wrap"><table><thead><tr><th>来源</th><th>语言</th><th>优先级</th><th>最近状态</th><th>候选/入选</th><th>启用</th></tr></thead><tbody id="source-table"></tbody></table></div><pre id="source-test-output" class="console-output hidden"></pre></article>
+      </section>
+
+      <section class="page" id="page-config">
+        <article class="panel structured-card"><div class="panel-head"><div><p class="eyebrow">DAILY POLICY</p><h2>日报规则</h2></div><button class="primary" id="save-schedule">保存规则</button></div><div id="schedule-form" class="form-grid"></div></article>
+        <article class="panel config-panel"><div class="panel-head"><div><p class="eyebrow">CONFIGURATION</p><h2>高级配置</h2></div><div class="segmented" id="config-tabs"><button data-section="runtime" class="active">运行</button><button data-section="corporations">企业</button><button data-section="media">媒体</button><button data-section="papers">论文</button></div></div><div class="editor-grid"><div><label class="field-label">高级 YAML</label><textarea id="yaml-editor" spellcheck="false"></textarea><div class="editor-actions"><span id="config-state">已载入</span><button class="primary" id="save-config">差异确认并保存</button></div></div><div><p class="field-label">版本记录</p><div id="revision-list" class="revision-list"></div></div></div></article>
+      </section>
+
+      <section class="page" id="page-mail">
+        <div class="split-grid"><article class="panel"><div class="panel-head"><div><p class="eyebrow">DELIVERY</p><h2>发件人与收件人</h2></div><div class="top-actions"><button class="secondary" id="add-sender">新增发件人</button><button class="secondary" id="mail-test">测试默认发件人</button><button class="primary" id="save-mail">保存</button></div></div><div id="mail-editor" class="stack-form"></div><p class="hint">SMTP 密码单独写入权限 0600 的密钥文件；页面只显示配置状态，不会回显密码。</p></article><article class="panel"><div class="panel-head"><div><p class="eyebrow">MODEL ROUTING</p><h2>主备大模型</h2></div><div class="top-actions"><button class="secondary" id="add-model">新增模型</button><button class="primary" id="save-models">保存</button></div></div><div id="model-list" class="model-list"></div><p class="hint">API Key 与配置分开保存，页面不会读取或显示现有密钥。</p></article></div>
+      </section>
+
+      <section class="page" id="page-git"><div class="split-grid"><article class="panel"><div class="panel-head"><div><p class="eyebrow">SOURCE CONTROL</p><h2>仓库状态</h2></div><button class="secondary" id="git-test">测试远端</button></div><div id="git-status" class="definition-list"></div></article><article class="panel"><div class="panel-head"><div><p class="eyebrow">SYNC POLICY</p><h2>Git 配置</h2></div><button class="primary" id="save-git">保存</button></div><div id="git-form" class="stack-form"></div><p class="hint">SSH 私钥由服务器文件权限管理，控制台不会回显私钥。</p></article></div></section>
+
+      <section class="page" id="page-logs"><article class="panel"><div class="panel-head"><div><p class="eyebrow">OBSERVABILITY</p><h2>运行日志</h2></div><select id="log-component"><option value="">全部组件</option><option value="daily">日报</option><option value="web">控制台</option><option value="collector">采集器</option><option value="paperlab">PaperLab</option></select></div><div id="log-list" class="log-list"></div></article></section>
+
+      <section class="page" id="page-paperlab"><div class="split-grid"><article class="panel"><div class="panel-head"><div><p class="eyebrow">PLUGIN STATUS</p><h2>PaperLab</h2></div><a class="button-link primary" href="/paperlab/">打开完整界面 →</a></div><div id="paperlab-status" class="definition-list"></div></article><article class="panel"><div class="panel-head"><div><p class="eyebrow">SYNC</p><h2>最近同步</h2></div><button class="secondary" id="paperlab-sync">立即同步</button></div><div id="paperlab-runs" class="list"></div></article></div></section>
+    </main>
+  </div>
+  <div id="toast" role="status"></div>
+  <script>window.CLIPPERS_CSRF={{ csrf|tojson }};</script>
+  <script src="/static/console.js?v=2"></script>
+</body>
+</html>

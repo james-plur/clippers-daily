@@ -1,0 +1,4 @@
+interface:
+  display_name: "Collect AI Company Updates"
+  short_description: "Collect and verify official AI company technology updates"
+  default_prompt: "Use $collect-ai-company-updates to collect enabled official company technology updates for Clippers."

@@ -1,0 +1,188 @@
+version: 1
+
+# 媒体源只负责二手报道、调查和行业分析；厂商博客由 coporations.yaml 管理。
+# source.enabled: true 时，未显式设置 enabled 的 channels 默认启用。
+defaults:
+  enabled: false
+  channel_enabled: true
+  priority: P2
+  schedule: daily
+  timezone: Asia/Shanghai
+  lookback_hours: 36
+  shadow_days: 7
+
+selection:
+  topics:
+    - AI infrastructure
+    - inference
+    - training
+    - GPU
+    - accelerator
+    - networking
+    - storage
+    - distributed systems
+    - compiler
+    - serving
+    - scheduling
+    - agent runtime
+    - foundation models
+  require_source_url: true
+  prefer_primary_source: true
+  retain_media_analysis: true
+  maximum_items_per_source: 10
+  duplicate_policy: merge_source_memberships
+  content_cache:
+    format: markdown
+    store_full_text: false
+    store_excerpt: true
+    respect_paywall_and_robots: true
+
+sources:
+  - id: jiqizhixin
+    name: 机器之心
+    language: zh-CN
+    category: ai_vertical_media
+    enabled: true
+    priority: P0
+    homepage: https://www.jiqizhixin.com/
+    topics: [AI, machine_learning, foundation_models, AI_infrastructure]
+    channels:
+      - id: website
+        adapter: gzip_sitemap
+        endpoint: https://www.jiqizhixin.com/shared/sitemap.xml.gz
+        url_filter: /articles/
+        article_date_pattern: /articles/(\d{4}-\d{2}-\d{2})
+        status: verified_official_sitemap
+        priority: P0
+      - id: zhihu
+        adapter: zhihu_search_mcp
+        query: 机器之心
+        author_aliases: [机器之心, 机器之心Pro]
+        status: configured_mcp_session_dependent
+        priority: P1
+        role: discovery_and_redundancy
+      - id: wechat
+        adapter: wechat_sogou_search
+        query: 机器之心
+        account_aliases: [机器之心, 机器之心Pro]
+        status: validated_sogou_html_fallback
+        priority: P1
+    notes:
+      - 未发现已核实的公开 RSS；不要把 /rss 或 /feed 的 HTML 响应当作 RSS。
+      - 优先保存原站 URL；知乎转载只作为发现或备用入口。
+
+  - id: newzhiyuan
+    name: 新智元
+    language: zh-CN
+    category: ai_vertical_media
+    enabled: true
+    priority: P0
+    homepage: null
+    topics: [AI, foundation_models, products, industry]
+    channels:
+      - id: zhihu
+        adapter: zhihu_search_mcp
+        query: 新智元
+        author_aliases: [新智元, 新智元AI]
+        status: configured_mcp_session_dependent
+        priority: P0
+      - id: wechat
+        enabled: true
+        adapter: wechat_sogou_search
+        account_name: 新智元
+        query: 新智元
+        account_aliases: [新智元, 新智元AI]
+        status: validated_sogou_html_fallback
+        priority: P1
+    notes:
+      - 当前不绑定未经核实的独立站域名，避免抓取同名或失效网站。
+      - 微信公众号缺少稳定公开 API，优先用知乎 MCP 发现，微信渠道用于补漏。
+
+  - id: reuters-ai
+    name: Reuters AI
+    language: en
+    category: general_news_wire
+    enabled: true
+    priority: P0
+    homepage: https://www.reuters.com/technology/artificial-intelligence/
+    topics: [AI, policy, companies, infrastructure_finance, industry]
+    channels:
+      - id: ai-topic
+        adapter: web_search_domain
+        endpoint: https://www.reuters.com/technology/artificial-intelligence/
+        domains: [reuters.com]
+        status: page_requires_browser_or_search
+        priority: P0
+      - id: breakingviews
+        adapter: web_search_domain
+        domains: [reuters.com]
+        query_suffix: Reuters Breakingviews artificial intelligence
+        status: available_via_search
+        priority: P1
+        content_type: analysis
+    notes:
+      - 当前 ChatGPT「AI 每日简报」中反复使用的主要独立媒体源。
+      - Reuters 页面可能返回 401；使用搜索结果定位文章，浏览器或授权渠道读取。
+      - Breakingviews 属于评论分析，输出时必须与事实报道分开标注。
+
+  - id: mit-technology-review-ai
+    name: MIT Technology Review AI
+    language: en
+    category: technology_analysis
+    enabled: true
+    priority: P1
+    homepage: https://www.technologyreview.com/topic/artificial-intelligence/
+    topics: [AI, research, policy, industry]
+    channels:
+      - id: feed
+        adapter: rss
+        endpoint: https://www.technologyreview.com/feed/
+        status: verified_feed
+        include_keywords: [AI, artificial intelligence, model, GPU, chip, data center, robot]
+    notes: [深度解释较强；部分内容可能有订阅限制。]
+
+  - id: ars-technica-ai
+    name: Ars Technica AI
+    language: en
+    category: technology_media
+    enabled: true
+    priority: P1
+    homepage: https://arstechnica.com/ai/
+    topics: [AI, software, hardware, policy]
+    channels:
+      - id: technology-lab-feed
+        adapter: rss
+        endpoint: https://feeds.arstechnica.com/arstechnica/technology-lab
+        status: verified_feed
+        include_keywords: [AI, artificial intelligence, LLM, model, GPU, server, cloud, data center]
+    notes: [技术背景扎实，适合作为产品与政策报道的解释性补充。]
+
+  - id: ieee-spectrum-ai
+    name: IEEE Spectrum AI
+    language: en
+    category: engineering_media
+    enabled: true
+    priority: P1
+    homepage: https://spectrum.ieee.org/artificial-intelligence/
+    topics: [AI, chips, robotics, engineering]
+    channels:
+      - id: ai-feed
+        adapter: rss
+        endpoint: https://spectrum.ieee.org/feeds/topic/artificial-intelligence.rss
+        status: verified_feed
+    notes: [偏工程、芯片和系统视角，与 AI Infra 关注方向互补。]
+
+  - id: the-register-ai
+    name: The Register AI
+    language: en
+    category: enterprise_technology_media
+    enabled: false
+    priority: P1
+    homepage: https://www.theregister.com/AI/
+    topics: [AI, datacenter, chips, cloud, enterprise_infrastructure]
+    channels:
+      - id: ai-section
+        adapter: html_listing
+        endpoint: https://www.theregister.com/AI/
+        status: pending_live_validation
+    notes: [数据中心、云和硬件报道较多，但标题风格强，需依靠主题过滤。]

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Clippers Console · 登录</title>
+  <link rel="stylesheet" href="/static/console.css">
+</head>
+<body class="login-body">
+  <main class="login-shell">
+    <section class="brand-panel">
+      <p class="eyebrow">CLIPPERS / OPERATIONS</p>
+      <h1>让每日信息流<br>保持清醒。</h1>
+      <p>日报、来源、模型与 PaperLab 的统一控制台。</p>
+      <div class="signal-line"><span></span><span></span><span></span></div>
+    </section>
+    <form id="login-form" class="login-form">
+      <div><p class="eyebrow">ADMIN ACCESS</p><h2>登录控制台</h2></div>
+      <label>管理员账号<input name="username" autocomplete="username" value="admin" required></label>
+      <label>密码<input name="password" type="password" autocomplete="current-password" required></label>
+      <p id="login-error" class="error" role="alert"></p>
+      <button type="submit">进入控制台 <span>→</span></button>
+    </form>
+  </main>
+  <script>
+    document.querySelector('#login-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(event.target));
+      const response = await fetch('/api/login', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+      if (!response.ok) { document.querySelector('#login-error').textContent = '账号或密码不正确'; return; }
+      const body = await response.json(); sessionStorage.setItem('clippers_csrf', body.csrf); location.href='/';
+    });
+  </script>
+</body>
+</html>

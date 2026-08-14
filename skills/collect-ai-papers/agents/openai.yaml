@@ -1,0 +1,4 @@
+interface:
+  display_name: "Collect AI Papers"
+  short_description: "Collect top-conference and trending arXiv papers"
+  default_prompt: "Use $collect-ai-papers to collect enabled conference papers and trending arXiv papers for Clippers."

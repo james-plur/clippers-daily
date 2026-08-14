@@ -1,0 +1,19 @@
+[Unit]
+Description=Clippers AI infrastructure daily digest
+After=network-online.target paperlab.service mihomo.service
+Wants=network-online.target mihomo.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/srv/clippers/current
+EnvironmentFile=/srv/clippers/.env
+Environment=CLIPPERS_CONFIG_DIR=/srv/clippers/config
+Environment=CLIPPERS_DATA_DIR=/srv/clippers/data
+Environment=CLIPPERS_SECRET_DIR=/srv/clippers/secrets
+ExecStart=/srv/clippers/current/.venv/bin/clippers daily
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/srv/clippers/data /srv/clippers/config /srv/clippers/secrets /srv/clippers-notes

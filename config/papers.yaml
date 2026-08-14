@@ -1,0 +1,117 @@
+version: 1
+
+# 论文来源已按当前需求启用。关闭整个来源时修改 source.enabled；
+# 单独排除会议时在该会议下显式添加 enabled: false。
+defaults:
+  enabled: true
+  conference_enabled: true
+  priority: P1
+  shadow_days: 7
+  timezone: Asia/Shanghai
+
+normalization:
+  identity_order: [arxiv_id, doi, normalized_title_hash]
+  preserve_multiple_venues: true
+  stale_records_policy: keep_and_report
+
+sources:
+  - id: paperlab
+    name: PaperLab
+    enabled: true
+    priority: P0
+    role: conference_catalog_primary
+    adapter: paperlab
+    cli: /Users/luchenda/tools/paperlab/.venv/bin/paperlab
+    config: /Users/luchenda/tools/paperlab/topics.yaml
+    database: /Users/luchenda/tools/paperlab/data/papers.db
+    schedule: weekly
+    incremental_command: [update]
+    query_command: [search]
+    conferences:
+      - {id: kdd, name: KDD, priority: P1, mode: paperlab, paperlab_venue: KDD}
+      - {id: icml, name: ICML, priority: P1, mode: paperlab, paperlab_venue: ICML}
+      - {id: neurips, name: NeurIPS, priority: P1, mode: paperlab, paperlab_venue: NEURIPS}
+      - {id: mlsys, name: MLSys, priority: P0, mode: paperlab, paperlab_venue: MLSYS}
+      - {id: iclr, name: ICLR, priority: P1, mode: paperlab, paperlab_venue: ICLR}
+      - {id: osdi, name: OSDI, priority: P0, mode: paperlab, paperlab_venue: OSDI}
+      - {id: sosp, name: SOSP, priority: P0, mode: paperlab, paperlab_venue: SOSP}
+      - {id: nsdi, name: NSDI, priority: P0, mode: paperlab, paperlab_venue: NSDI}
+      - {id: fast, name: FAST, priority: P0, mode: paperlab, paperlab_venue: FAST}
+      - {id: sigcomm, name: SIGCOMM, priority: P0, mode: paperlab, paperlab_venue: SIGCOMM}
+      - {id: asplos, name: ASPLOS, priority: P0, mode: paperlab, paperlab_venue: ASPLOS}
+      - {id: isca, name: ISCA, priority: P0, mode: paperlab, paperlab_venue: ISCA}
+      - {id: micro, name: MICRO, priority: P0, mode: paperlab, paperlab_venue: MICRO}
+      - {id: hpca, name: HPCA, priority: P0, mode: paperlab, paperlab_venue: HPCA}
+      - id: usenix-atc
+        name: USENIX ATC
+        priority: P2
+        mode: archive_external
+        paperlab_venue: null
+        status: not_in_current_paperlab
+        primary_endpoint: https://dblp.org/db/conf/usenix/index.html
+        official_endpoint: https://www.usenix.org/conferences/byname/131
+        note: 作为历史论文源保留，不期待持续产生新届论文。
+      - id: eurosys
+        name: EuroSys
+        priority: P0
+        mode: external_until_paperlab_support
+        paperlab_venue: null
+        status: not_in_current_paperlab
+        primary_endpoint: https://dblp.org/db/conf/eurosys/index.html
+        official_endpoint: https://www.eurosys.org/
+        schedule: conference_cycle
+
+  - id: huggingface-daily-papers
+    name: Hugging Face Daily Papers
+    enabled: true
+    priority: P0
+    role: trending_arxiv_discovery
+    adapter: huggingface_daily_papers
+    endpoint: https://huggingface.co/api/daily_papers
+    schedule: daily
+    request:
+      limit: 100
+    selection:
+      lookback_days: 7
+      ranking: upvotes_desc
+      daily_top_n: 20
+      minimum_upvotes: 1
+      require_arxiv_id: true
+      topic_filter:
+        enabled: true
+        keywords:
+          - inference
+          - serving
+          - training
+          - distributed
+          - GPU
+          - accelerator
+          - memory
+          - cache
+          - networking
+          - RDMA
+          - collective communication
+          - compiler
+          - kernel
+          - scheduling
+          - storage
+          - agent
+        exclude_keywords: [withdrawn, retracted]
+    popularity_signals:
+      - paper.upvotes
+      - numComments
+      - paper.submittedOnDailyAt
+    enrichment:
+      primary: arxiv
+      adapters: [paper_search_mcp, paperlab]
+      preserve_fields:
+        - arxiv_id
+        - authors
+        - title
+        - summary
+        - published_at
+        - submitted_on_daily_at
+        - upvotes
+        - comments
+        - discussion_id
+

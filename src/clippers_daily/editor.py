@@ -47,7 +47,20 @@ def build_digest(records: list[Record], digest_date: date, target: int, policy: 
                  llm_config: dict | None = None) -> Digest:
     if not records:
         raise ValueError("没有可用于生成日报的新候选记录")
-    candidates = [r.model_dump(mode="json") for r in records[:120]]
+    aliases = {f"c{index:03d}": record.id for index, record in enumerate(records[:120], 1)}
+    reverse_aliases = {record_id: alias for alias, record_id in aliases.items()}
+    candidates = []
+    for alias, record in zip(aliases, records[:120]):
+        metadata = {key: value for key, value in record.metadata.items()
+                    if key not in {"paperlab_id", "id", "record_id", "sync_id"}}
+        candidates.append({
+            "id": alias, "category": record.category, "title": record.title, "url": record.url,
+            "source_name": record.source_name, "source_id": record.source_id,
+            "channel_id": record.channel_id,
+            "published_at": record.published_at.isoformat() if record.published_at else None,
+            "summary": record.summary, "language": record.language, "topics": record.topics,
+            "metadata": metadata,
+        })
     policy = policy or {}
     requirements = []
     deepseek_quota = int(policy.get("minimum_deepseek_items", policy.get("require_deepseek", 0)))
@@ -57,7 +70,8 @@ def build_digest(records: list[Record], digest_date: date, target: int, policy: 
     if zh_media_quota:
         requirements.append(f"至少 {zh_media_quota} 个条目必须引用 language=zh-CN 且 category=media 的记录")
     if policy.get("reserved_record_ids"):
-        requirements.append("必须引用这些确定性保底候选：" + ", ".join(policy["reserved_record_ids"]))
+        required_aliases = [reverse_aliases[item] for item in policy["reserved_record_ids"] if item in reverse_aliases]
+        requirements.append("必须引用这些确定性保底候选：" + ", ".join(required_aliases))
     prompt = (
         f"为 {digest_date.isoformat()} 生成日报，目标 {target} 条；候选数不少于目标时必须恰好输出 {target} 条，候选不足时宁缺毋滥。"
         + ("硬性约束：" + "；".join(requirements) + "。" if requirements else "")
@@ -75,7 +89,10 @@ def build_digest(records: list[Record], digest_date: date, target: int, policy: 
             error = ValueError("智谱模型返回空内容")
             continue
         try:
-            return _validate_digest(Digest.model_validate_json(content), records, target, policy)
+            digest = Digest.model_validate_json(content)
+            for item in digest.items:
+                item.record_ids = [aliases.get(record_id, record_id) for record_id in item.record_ids]
+            return _validate_digest(digest, records, target, policy)
         except (ValueError, TypeError) as exc:
             error = exc
     raise ValueError(f"日报连续5次未通过质量校验: {error}")

@@ -9,7 +9,7 @@ import pytest
 
 from clippers_daily.app import _candidate_pool
 from clippers_daily.collectors import Collector, date_from_path, normalize_sitemap_url
-from clippers_daily.editor import _validate_digest
+from clippers_daily.editor import _validate_digest, build_digest
 from clippers_daily.models import Digest, DigestItem, Record
 from clippers_daily.storage import Store
 
@@ -111,6 +111,19 @@ def test_hard_quotas_are_validated():
     with pytest.raises(ValueError, match="DeepSeek"):
         _validate_digest(Digest(date=digest.date, overview="x", items=[item(chinese), item(paper)]), [deepseek, chinese, paper], 2,
                          {"require_deepseek":True,"require_zh_media":True})
+
+
+def test_editor_maps_unambiguous_candidate_aliases(monkeypatch):
+    deepseek = record("deep", source="DeepSeek"); deepseek.source_id = "deepseek"
+    deepseek.metadata["paperlab_id"] = "misleading:internal:id"
+    payload = {"date":"2026-08-14","overview":"概览","items":[{
+        "record_ids":["c001"],"title":"DeepSeek 更新","source":"DeepSeek","reason":"重要",
+        "detail":"详细说明"*50,"links":[deepseek.url],"category":"company",
+        "keywords":["推理","训练","系统"],"tags":["AI基础设施","企业"]}]}
+    monkeypatch.setattr("clippers_daily.editor.json_completion", lambda *args, **kwargs: __import__("json").dumps(payload, ensure_ascii=False))
+    digest = build_digest([deepseek], date(2026,8,14), 1,
+                          {"minimum_deepseek_items":1,"reserved_record_ids":[deepseek.id]}, {})
+    assert digest.items[0].record_ids == [deepseek.id]
 
 
 def test_candidate_pool_places_deepseek_and_chinese_first(tmp_path):

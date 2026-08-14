@@ -607,7 +607,7 @@ def collect_all(settings) -> tuple[list[Record], list[RunReport]]:
             source = settings.source(source_id) or {}
             result[1].started_at = result[1].started_at or started_at
             result[1].finished_at = result[1].finished_at or datetime.now(timezone.utc)
-            if not result[1].parsed and result[1].selected:
+            if result[1].status == "success" and not result[1].parsed and result[1].selected:
                 result[1].parsed = result[1].selected
             for record in result[0]:
                 record.language = source.get("language", record.language)

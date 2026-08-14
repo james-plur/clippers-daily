@@ -34,17 +34,19 @@ class AuthManager:
 
     def login(self, username: str, password: str, remote_ip: str) -> Session | None:
         now = time.time()
-        recent = [value for value in self.failures.get(remote_ip, []) if now - value < 300]
-        self.failures[remote_ip] = recent
-        if len(recent) >= 10:
-            return None
+        with self.lock:
+            recent = [value for value in self.failures.get(remote_ip, []) if now - value < 300]
+            self.failures[remote_ip] = recent
+            if len(recent) >= 10:
+                return None
         expected = os.getenv("PAPERLAB_ADMIN_USERNAME", "admin")
         try:
             valid = bool(self.password_hash) and hmac.compare_digest(username, expected) and self.hasher.verify(self.password_hash, password)
         except (VerifyMismatchError, ValueError):
             valid = False
         if not valid:
-            self.failures.setdefault(remote_ip, []).append(now)
+            with self.lock:
+                self.failures.setdefault(remote_ip, []).append(now)
             return None
         session = Session(secrets.token_urlsafe(32), secrets.token_urlsafe(32), now)
         with self.lock:
@@ -55,17 +57,19 @@ class AuthManager:
     def get(self, token: str | None) -> Session | None:
         if not token:
             return None
-        session = self.sessions.get(token)
-        now = time.time()
-        if not session or now - session.last_seen > self.ttl:
-            self.sessions.pop(token, None)
-            return None
-        session.last_seen = now
-        return session
+        with self.lock:
+            session = self.sessions.get(token)
+            now = time.time()
+            if not session or now - session.last_seen > self.ttl:
+                self.sessions.pop(token, None)
+                return None
+            session.last_seen = now
+            return session
 
     def logout(self, token: str | None) -> None:
         if token:
-            self.sessions.pop(token, None)
+            with self.lock:
+                self.sessions.pop(token, None)
 
 
 def secret_status(config: dict) -> dict:

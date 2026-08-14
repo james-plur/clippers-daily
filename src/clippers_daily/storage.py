@@ -103,7 +103,7 @@ class Store:
         delivered_dates = {row[0] for row in self.db.execute("SELECT digest_date FROM deliveries")}
         if not delivered_dates:
             return
-        with self.db:
+        with self.lock, self.db:
             for (payload,) in self.db.execute("SELECT payload FROM records"):
                 data = json.loads(payload)
                 digest_date = data.get("metadata", {}).get("digest_date")
@@ -113,7 +113,7 @@ class Store:
 
     def save_records(self, records: list[Record]) -> None:
         now = datetime.now(timezone.utc).isoformat()
-        with self.db:
+        with self.lock, self.db:
             for record in records:
                 self.db.execute(
                     """INSERT INTO records VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -126,7 +126,7 @@ class Store:
                 )
 
     def save_reports(self, run_id: str, reports: list[RunReport]) -> None:
-        with self.db:
+        with self.lock, self.db:
             self.db.executemany(
                 "INSERT INTO run_reports VALUES (?, ?, ?, ?, ?)",
                 [(run_id, r.source_id, r.channel_id, r.status, r.model_dump_json()) for r in reports],
@@ -163,7 +163,7 @@ class Store:
         return self.db.execute("SELECT 1 FROM deliveries WHERE digest_date=?", (digest_date,)).fetchone() is not None
 
     def mark_delivered(self, digest_date: str, message_id: str, records: list[Record]) -> None:
-        with self.db:
+        with self.lock, self.db:
             self.db.execute(
                 "INSERT OR REPLACE INTO deliveries VALUES (?, ?, ?)",
                 (digest_date, datetime.now(timezone.utc).isoformat(), message_id),
@@ -174,7 +174,7 @@ class Store:
             )
 
     def start_run(self, run_id: str, digest_date: str, mode: str, config_revision: int | None = None) -> None:
-        with self.db:
+        with self.lock, self.db:
             self.db.execute("INSERT INTO daily_runs(run_id,digest_date,mode,status,started_at,config_revision) VALUES (?,?,?,?,?,?)",
                             (run_id, digest_date, mode, "running", datetime.now(timezone.utc).isoformat(), config_revision))
             self.log(run_id, "info", "daily", f"开始{mode}任务", {"digest_date": digest_date})
@@ -182,7 +182,7 @@ class Store:
     def finish_run(self, run_id: str, status: str, markdown_path: str | None = None,
                    html_path: str | None = None, message_id: str | None = None,
                    error: str | None = None) -> None:
-        with self.db:
+        with self.lock, self.db:
             self.db.execute("""UPDATE daily_runs SET status=?,finished_at=?,markdown_path=?,html_path=?,message_id=?,error=?
                                WHERE run_id=?""",
                             (status, datetime.now(timezone.utc).isoformat(), markdown_path, html_path, message_id, error, run_id))
@@ -190,7 +190,7 @@ class Store:
                      "任务失败" if status == "failed" else "任务完成", {"error": error} if error else {})
 
     def save_digest(self, digest, markdown: str, html: str, run_id: str) -> None:
-        with self.db:
+        with self.lock, self.db:
             self.db.execute("INSERT OR REPLACE INTO digest_editions VALUES (?,?,?,?,?,?)",
                             (digest.date, digest.overview, markdown, html, datetime.now(timezone.utc).isoformat(), run_id))
             self.db.execute("DELETE FROM digest_entries WHERE digest_date=?", (digest.date,))
@@ -213,7 +213,7 @@ class Store:
         now = datetime.now(timezone.utc).isoformat()
         previous = self.db.execute("SELECT rating FROM ratings WHERE subject_type=? AND digest_date=? AND subject_id=?",
                                    (subject_type, digest_date, subject_id)).fetchone()
-        with self.db:
+        with self.lock, self.db:
             self.db.execute("INSERT OR REPLACE INTO ratings VALUES (?,?,?,?,?,?)",
                             (subject_type, digest_date, subject_id, rating, review, now))
             if subject_type == "item":

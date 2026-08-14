@@ -610,6 +610,10 @@ def collect_all(settings) -> tuple[list[Record], list[RunReport]]:
                 record.metadata.setdefault("language", record.language)
                 record.metadata.setdefault("parse_status", record.parse_status)
             records.extend(result[0]); reports.append(result[1])
+    completed_at = datetime.now(timezone.utc)
+    for report in reports:
+        report.started_at = report.started_at or completed_at
+        report.finished_at = report.finished_at or completed_at
     return deduplicate(records), reports
 
 

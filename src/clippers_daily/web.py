@@ -39,6 +39,11 @@ JOB_LOCK = threading.Lock()
 COOKIE = "clippers_session"
 
 
+def project_root() -> Path:
+    cwd = Path.cwd()
+    return cwd if (cwd / "pyproject.toml").is_file() else Path(__file__).resolve().parents[2]
+
+
 class LoginBody(BaseModel):
     username: str
     password: str
@@ -137,7 +142,10 @@ def create_app() -> FastAPI:
     def status(session: Session = Depends(current_session)) -> dict:
         latest = STORE.list_jobs(1)
         reports = [dict(row) for row in STORE.db.execute(
-            "SELECT source_id,status,max(rowid) rowid FROM source_runs GROUP BY source_id ORDER BY source_id")]
+            """SELECT s.source_id,s.status,s.fetched,s.parsed,s.eligible,s.selected,s.error
+               FROM source_runs s JOIN (
+                 SELECT source_id,max(rowid) AS latest_row FROM source_runs GROUP BY source_id
+               ) latest ON latest.latest_row=s.rowid ORDER BY s.source_id""")]
         return {"latest_job": latest[0] if latest else None, "source_health": reports,
                 "digests": STORE.list_digests(7), "secrets": secret_status(CONFIG.read("runtime")),
                 "paperlab": paperlab_status()}
@@ -284,8 +292,14 @@ def create_app() -> FastAPI:
 
     @app.get("/api/git/status")
     def git_status(session: Session = Depends(current_session)) -> dict:
-        repo = Path(__file__).resolve().parents[2]
+        repo = project_root()
         configured = CONFIG.read("runtime").get("git", {})
+        revision_file = repo / "REVISION"
+        if not (repo / ".git").exists() and revision_file.is_file():
+            return {"branch": configured.get("branch", "main"),
+                    "commit": revision_file.read_text(encoding="utf-8").strip()[:12],
+                    "remote": configured.get("remote", ""), "status": "immutable release",
+                    "configured": configured}
         def run(*args: str) -> str:
             result = subprocess.run(["git", "-C", str(repo), *args], text=True, capture_output=True, timeout=10)
             return (result.stdout or result.stderr).strip()
@@ -295,7 +309,7 @@ def create_app() -> FastAPI:
 
     @app.post("/api/git/test")
     def git_test(session: Session = Depends(csrf_session)) -> dict:
-        repo = Path(__file__).resolve().parents[2]
+        repo = project_root()
         config = CONFIG.read("runtime").get("git", {})
         remote = str(config.get("remote") or "origin")
         env = os.environ.copy()

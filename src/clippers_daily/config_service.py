@@ -78,7 +78,7 @@ class ConfigManager:
         path = self.config_dir / SECTIONS[section]
         previous = path.read_text(encoding="utf-8") if path.is_file() else ""
         content = yaml.safe_dump(value, allow_unicode=True, sort_keys=False)
-        with self.store.db:
+        with self.store.lock, self.store.db:
             cursor = self.store.db.execute(
                 "INSERT INTO config_revisions(section,content,previous_content,created_at,actor) VALUES (?,?,?,?,?)",
                 (section, content, previous, datetime.now(timezone.utc).isoformat(), actor),

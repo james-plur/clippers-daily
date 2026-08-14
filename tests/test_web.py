@@ -20,7 +20,9 @@ def test_console_auth_and_config(tmp_path, monkeypatch):
     import clippers_daily.web as web
     web = importlib.reload(web)
     with TestClient(web.app, base_url="https://testserver") as client:
-        assert client.get("/").status_code == 401
+        assert client.get("/", follow_redirects=False).status_code == 303
+        assert client.get("/", follow_redirects=False).headers["location"] == "/login"
+        assert client.get("/paperlab/", follow_redirects=False).status_code == 303
         assert client.get("/api/sync/status").status_code == 404
         login = client.post("/api/login", json={"username":"admin","password":"secret"})
         assert login.status_code == 200

@@ -45,6 +45,7 @@ web:
 paperlab_proxy:
   base_path: /paperlab
   upstream: http://127.0.0.1:8765
+  gateway_token_file: /srv/clippers/secrets/paperlab_gateway_token
 notes:
   enabled: true
   repo_path: /srv/clippers-notes

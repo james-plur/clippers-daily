@@ -96,6 +96,10 @@ def current_session(clippers_session: str | None = Cookie(default=None)) -> Sess
     return session
 
 
+def optional_session(clippers_session: str | None = Cookie(default=None)) -> Session | None:
+    return AUTH.get(clippers_session)
+
+
 def csrf_session(session: Session = Depends(current_session), x_csrf_token: str = Header(default="")) -> Session:
     if not x_csrf_token or not hmac_compare(x_csrf_token, session.csrf):
         raise HTTPException(403, "CSRF 校验失败")
@@ -105,6 +109,18 @@ def csrf_session(session: Session = Depends(current_session), x_csrf_token: str 
 def hmac_compare(left: str, right: str) -> bool:
     import hmac
     return hmac.compare_digest(left, right)
+
+
+def paperlab_gateway_token() -> str:
+    configured = os.getenv("PAPERLAB_GATEWAY_TOKEN", "").strip()
+    if configured:
+        return configured
+    proxy = CONFIG.read("runtime").get("paperlab_proxy", {})
+    token_file = Path(proxy.get("gateway_token_file", "/srv/clippers/secrets/paperlab_gateway_token"))
+    try:
+        return token_file.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
 
 
 def create_app() -> FastAPI:
@@ -136,7 +152,9 @@ def create_app() -> FastAPI:
         return {"ok": True}
 
     @app.get("/", response_class=HTMLResponse)
-    def index(session: Session = Depends(current_session)) -> HTMLResponse:
+    def index(session: Session | None = Depends(optional_session)) -> Response:
+        if not session:
+            return RedirectResponse("/login", status_code=303)
         return HTMLResponse(TEMPLATES.get_template("index.html").render(csrf=session.csrf))
 
     @app.get("/api/status")
@@ -391,11 +409,18 @@ def create_app() -> FastAPI:
         return Response(result.content, status_code=result.status_code, headers=response_headers)
 
     @app.get("/paperlab")
-    def paperlab_redirect(session: Session = Depends(current_session)) -> RedirectResponse:
+    def paperlab_redirect(session: Session | None = Depends(optional_session)) -> RedirectResponse:
+        if not session:
+            return RedirectResponse("/login", status_code=303)
         return RedirectResponse("/paperlab/", status_code=307)
 
     @app.api_route("/paperlab/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
-    async def paperlab_proxy(path: str, request: Request, session: Session = Depends(current_session)) -> Response:
+    async def paperlab_proxy(path: str, request: Request,
+                             session: Session | None = Depends(optional_session)) -> Response:
+        if not session:
+            if request.method == "GET" and not path:
+                return RedirectResponse("/login", status_code=303)
+            raise HTTPException(401, "需要登录")
         if request.method not in {"GET", "HEAD", "OPTIONS"}:
             if not hmac_compare(request.headers.get("x-csrf-token", ""), session.csrf):
                 raise HTTPException(403, "CSRF 校验失败")
@@ -404,8 +429,13 @@ def create_app() -> FastAPI:
         if request.url.query:
             url += "?" + request.url.query
         headers = {key: value for key, value in request.headers.items()
-                   if key.lower() not in {"host", "content-length", "cookie", "authorization"}}
+                   if key.lower() not in {"host", "content-length", "cookie", "authorization",
+                                          "x-clippers-gateway-token"}}
         headers["X-Forwarded-Prefix"] = "/paperlab"
+        gateway_token = paperlab_gateway_token()
+        if not gateway_token:
+            raise HTTPException(503, "PaperLab 网关凭据未配置")
+        headers["X-Clippers-Gateway-Token"] = gateway_token
         async with httpx.AsyncClient(timeout=3600, follow_redirects=False) as client:
             result = await client.request(request.method, url, headers=headers, content=await request.body())
         response_headers = {key: value for key, value in result.headers.items()

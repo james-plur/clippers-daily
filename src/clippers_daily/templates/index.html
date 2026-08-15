@@ -21,7 +21,8 @@
         <button data-page="mail"><span>05</span>邮件与模型</button>
         <button data-page="git"><span>06</span>Git</button>
         <button data-page="logs"><span>07</span>运行日志</button>
-        <button data-page="paperlab"><span>08</span>PaperLab</button>
+        <button data-page="maintenance"><span>08</span>自动维护</button>
+        <button data-page="paperlab"><span>09</span>PaperLab</button>
       </nav>
       <div class="sidebar-foot"><span class="live-dot"></span><span>SERVER ONLINE</span><button id="logout" title="退出登录">退出</button></div>
     </aside>
@@ -64,6 +65,8 @@
       <section class="page" id="page-git"><div class="split-grid"><article class="panel"><div class="panel-head"><div><p class="eyebrow">SOURCE CONTROL</p><h2>仓库状态</h2></div><button class="secondary" id="git-test">测试远端</button></div><div id="git-status" class="definition-list"></div></article><article class="panel"><div class="panel-head"><div><p class="eyebrow">SYNC POLICY</p><h2>Git 配置</h2></div><button class="primary" id="save-git">保存</button></div><div id="git-form" class="stack-form"></div><p class="hint">SSH 私钥由服务器文件权限管理，控制台不会回显私钥。</p></article></div></section>
 
       <section class="page" id="page-logs"><article class="panel"><div class="panel-head"><div><p class="eyebrow">OBSERVABILITY</p><h2>运行日志</h2></div><select id="log-component"><option value="">全部组件</option><option value="daily">日报</option><option value="code">代码</option><option value="web">控制台</option><option value="collector">采集器</option><option value="paperlab">PaperLab</option></select></div><div id="log-list" class="log-list"></div></article></section>
+
+      <section class="page" id="page-maintenance"><article class="panel"><div class="panel-head"><div><p class="eyebrow">AUTONOMOUS REPAIR</p><h2>信息源与日报修复</h2></div><button class="primary" id="maintenance-run">立即检查</button></div><p class="hint">异常来源会被独立研究、生成专用采集器并实时验收；质量通过后自动提交 main 并热部署。失败会退避重试。</p><div class="table-wrap"><table><thead><tr><th>时间</th><th>目标</th><th>触发原因</th><th>状态</th><th>质量</th><th>提交</th><th>诊断/错误</th></tr></thead><tbody id="maintenance-table"></tbody></table></div></article></section>
 
       <section class="page" id="page-paperlab"><div class="split-grid"><article class="panel"><div class="panel-head"><div><p class="eyebrow">PLUGIN STATUS</p><h2>PaperLab</h2></div><a class="button-link primary" href="/paperlab/">打开完整界面 →</a></div><div id="paperlab-status" class="definition-list"></div></article><article class="panel"><div class="panel-head"><div><p class="eyebrow">SYNC</p><h2>最近同步</h2></div><button class="secondary" id="paperlab-sync">立即同步</button></div><div id="paperlab-runs" class="list"></div></article></div></section>
     </main>

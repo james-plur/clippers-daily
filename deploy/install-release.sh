@@ -21,6 +21,7 @@ install -d -m 0755 "$root/releases" "$root/backups"
 # fail with HTTP 500.
 install -d -o ubuntu -g ubuntu -m 0755 "$root/data" "$root/config"
 install -d -o ubuntu -g ubuntu -m 0700 "$root/secrets"
+install -d -o ubuntu -g ubuntu -m 0755 "$root/data/source_adapters" "$root/maintenance"
 
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 backup="$root/backups/$stamp"

@@ -1,8 +1,7 @@
 [Unit]
-Description=Clippers AI infrastructure daily digest
-After=network-online.target clippers-llm-gateway.service paperlab.service mihomo.service
-Wants=clippers-llm-gateway.service
-Wants=network-online.target mihomo.service
+Description=Clippers autonomous source and digest maintainer
+After=network-online.target clippers-llm-gateway.service
+Wants=network-online.target clippers-llm-gateway.service
 
 [Service]
 Type=oneshot
@@ -14,8 +13,10 @@ Environment=CLIPPERS_CONFIG_DIR=/srv/clippers/config
 Environment=CLIPPERS_DATA_DIR=/srv/clippers/data
 Environment=CLIPPERS_SECRET_DIR=/srv/clippers/secrets
 Environment=CLIPPERS_ADAPTER_DIR=/srv/clippers/data/source_adapters
-ExecStart=/srv/clippers/current/.venv/bin/clippers daily
+ExecStart=/srv/clippers/current/.venv/bin/clippers maintain
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
-ReadWritePaths=/srv/clippers/data /srv/clippers/config /srv/clippers/secrets /srv/clippers-notes
+ProtectHome=true
+ReadWritePaths=/srv/clippers/data /srv/clippers/config /srv/clippers/secrets /srv/clippers/maintenance
+

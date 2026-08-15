@@ -29,6 +29,7 @@ from .config import Settings
 from .config_service import ConfigManager, SECTIONS
 from .llm import test_provider
 from .mailer import test_connection
+from .maintenance import maintain
 from .storage import Store
 
 
@@ -468,6 +469,32 @@ def create_app() -> FastAPI:
     @app.get("/api/logs")
     def logs(limit: int = 200, component: str | None = None, session: Session = Depends(current_session)) -> list[dict]:
         return STORE.list_logs(min(1000, max(1, limit)), component)
+
+    @app.get("/api/maintenance")
+    def maintenance_runs(limit: int = 100, session: Session = Depends(current_session)) -> list[dict]:
+        rows = STORE.db.execute("SELECT * FROM maintenance_runs ORDER BY id DESC LIMIT ?", (min(500, max(1, limit)),)).fetchall()
+        result = []
+        for row in rows:
+            item = dict(row)
+            for key in ("quality_before", "quality_after"):
+                try:
+                    item[key] = json.loads(item[key] or "{}")
+                except json.JSONDecodeError:
+                    item[key] = {}
+            result.append(item)
+        return result
+
+    @app.post("/api/jobs/maintenance")
+    def maintenance_job(session: Session = Depends(csrf_session)) -> dict:
+        if not JOB_LOCK.acquire(blocking=False):
+            raise HTTPException(409, "已有后台任务正在运行")
+        def worker() -> None:
+            try:
+                maintain(Settings())
+            finally:
+                JOB_LOCK.release()
+        threading.Thread(target=worker, daemon=True).start()
+        return {"ok": True, "status": "started"}
 
     @app.get("/api/paperlab/status")
     def get_paperlab_status(session: Session = Depends(current_session)) -> dict:

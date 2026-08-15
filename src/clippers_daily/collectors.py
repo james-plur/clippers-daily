@@ -18,10 +18,30 @@ import httpx
 from bs4 import BeautifulSoup
 
 from .models import Record, RunReport
+from .source_adapter import adapter_path, run_source_adapter
 
 
 TRACKING = {"utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "ref"}
 PRIORITY_VALUES = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}
+
+
+def collect_override(source: dict, runtime: dict) -> tuple[list[Record], RunReport]:
+    result = run_source_adapter(source, runtime)
+    if result is None:
+        raise ValueError("独立适配器不存在")
+    records, reports = result
+    if not reports:
+        report = RunReport(source_id=source["id"], channel_id="independent-adapter", status="success",
+                           fetched=len(records), parsed=len(records), selected=len(records))
+    else:
+        status = "success" if all(r.status in {"success", "not_modified"} for r in reports) else reports[0].status
+        report = RunReport(source_id=source["id"], channel_id="independent-adapter", status=status,
+            fetched=sum(r.fetched for r in reports), parsed=sum(r.parsed for r in reports),
+            selected=sum(r.selected for r in reports), filtered=sum(r.filtered for r in reports),
+            error="; ".join(r.error for r in reports if r.error)[:1000] or None)
+    for record in records:
+        record.metadata["independent_adapter"] = True
+    return records, report
 
 
 def canonicalize(url: str) -> str:
@@ -546,6 +566,9 @@ def collect_all(settings) -> tuple[list[Record], list[RunReport]]:
     for corp in settings.corporations.get("corporations", []):
         if not corp.get("enabled", company_defaults.get("enabled", False)):
             continue
+        if adapter_path(corp["id"]).is_file():
+            jobs.append((corp["id"], "independent-adapter", collect_override, (corp, settings.runtime)))
+            continue
         for channel in corp.get("channels", []):
             if channel.get("enabled", company_defaults.get("channel_enabled", True)) is False:
                 continue
@@ -571,6 +594,9 @@ def collect_all(settings) -> tuple[list[Record], list[RunReport]]:
     for source in settings.media.get("sources", []):
         if not source.get("enabled", media_defaults.get("enabled", False)):
             continue
+        if adapter_path(source["id"]).is_file():
+            jobs.append((source["id"], "independent-adapter", collect_override, (source, settings.runtime)))
+            continue
         for channel in source.get("channels", []):
             if channel.get("enabled", media_defaults.get("channel_enabled", True)) is False:
                 continue
@@ -590,6 +616,9 @@ def collect_all(settings) -> tuple[list[Record], list[RunReport]]:
 
     for source in settings.papers.get("sources", []):
         if not source.get("enabled", settings.papers.get("defaults", {}).get("enabled", True)):
+            continue
+        if adapter_path(source["id"]).is_file():
+            jobs.append((source["id"], "independent-adapter", collect_override, (source, settings.runtime)))
             continue
         if source.get("adapter") == "huggingface_daily_papers":
             jobs.append((source["id"], "daily-papers", collector.hf_papers, (source,)))

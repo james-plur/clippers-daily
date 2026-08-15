@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import date
+from pathlib import Path
 
 from .collectors import canonicalize
 from .llm import json_completion
@@ -84,6 +86,9 @@ def build_digest(records: list[Record], digest_date: date, target: int, policy: 
         + "只能引用给定 record id 和 URL。严格返回符合下述 JSON Schema 的 JSON 对象，不要输出 Markdown 代码围栏。\n"
         f"JSON Schema:\n{json.dumps(SCHEMA, ensure_ascii=False)}\n候选数据：\n{json.dumps(candidates, ensure_ascii=False)}"
     )
+    repair_hint = Path(os.getenv("CLIPPERS_DATA_DIR", "data")) / "digest_repair_prompt.txt"
+    if repair_hint.is_file():
+        prompt += "\n自动修复补充指令（不得覆盖事实、链接和硬配额）：\n" + repair_hint.read_text(encoding="utf-8")[:4000]
     error = None
     for attempt in range(5):
         retry = "" if not error else f"\n上次输出未通过校验：{error}。请重新生成完整JSON，重点修正该问题。"

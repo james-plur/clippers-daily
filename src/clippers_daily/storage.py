@@ -98,6 +98,14 @@ CREATE TABLE IF NOT EXISTS code_changes (
   PRIMARY KEY(provider,full_name,base_sha,head_sha)
 );
 CREATE INDEX IF NOT EXISTS code_changes_status_idx ON code_changes(status,important,detected_at);
+CREATE TABLE IF NOT EXISTS maintenance_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, started_at TEXT NOT NULL, finished_at TEXT,
+  target_type TEXT NOT NULL, target_id TEXT NOT NULL, trigger TEXT NOT NULL,
+  status TEXT NOT NULL, diagnosis TEXT, action TEXT, quality_before TEXT,
+  quality_after TEXT, git_sha TEXT, deployed_path TEXT, error TEXT,
+  next_retry_at TEXT
+);
+CREATE INDEX IF NOT EXISTS maintenance_target_idx ON maintenance_runs(target_type,target_id,started_at DESC);
 """
 
 

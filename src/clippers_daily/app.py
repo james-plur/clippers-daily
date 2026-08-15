@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
+import os
+from pathlib import Path
 
 from .collectors import collect_all, deduplicate
 from .code_source import code_status, sync_github
@@ -132,6 +134,8 @@ def run_daily(settings: Settings, digest_date: date, send: bool = True, force_se
         markdown = markdown_path.read_text(encoding="utf-8")
         html = html_path.read_text(encoding="utf-8")
         store.save_digest(digest, markdown, html, run_id)
+        repair_hint = Path(os.getenv("CLIPPERS_DATA_DIR", "data")) / "digest_repair_prompt.txt"
+        repair_hint.unlink(missing_ok=True)
         message_id = None
         selected = [r for r in records if r.id in selected_ids]
         if send:

@@ -6,7 +6,7 @@ from pathlib import Path
 from .models import Digest
 
 
-LABELS = {"company": "企业", "media": "媒体", "paper": "论文"}
+LABELS = {"company": "企业", "media": "媒体", "paper": "论文", "code": "代码"}
 
 
 def render_markdown(digest: Digest) -> str:

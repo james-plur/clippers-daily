@@ -10,6 +10,7 @@ from .app import run_daily
 from .collectors import collect_source
 from .config import Settings
 from .storage import Store
+from .maintenance import maintain
 
 
 def doctor(settings: Settings) -> int:
@@ -38,6 +39,7 @@ def main() -> None:
     source.add_argument("--limit", type=int, default=20)
     sub.add_parser("doctor")
     sub.add_parser("migrate")
+    sub.add_parser("maintain")
     args = parser.parse_args()
     settings = Settings()
     if args.command == "doctor":
@@ -47,6 +49,9 @@ def main() -> None:
         history = store.backfill_digest_editions(settings.output_dir)
         store.db.close()
         print(json.dumps({"ok": True, "database": str(settings.database), "history": history}, ensure_ascii=False))
+        return
+    if args.command == "maintain":
+        print(json.dumps(maintain(settings), ensure_ascii=False, indent=2, default=str))
         return
     if args.command == "source-test":
         try:

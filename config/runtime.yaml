@@ -61,3 +61,15 @@ notes:
   repo_path: /srv/clippers-notes
   inbox_dir: _inbox/日报
   branch: main
+maintenance:
+  enabled: true
+  interval_minutes: 60
+  consecutive_failures: 2
+  empty_run_threshold: 3
+  max_repairs_per_run: 2
+  max_attempts_per_target: 3
+  repository: git@github.com:james-plur/clippers-daily.git
+  worktree: /srv/clippers/maintenance/repo
+  adapter_dir: /srv/clippers/data/source_adapters
+  auto_merge: true
+  auto_deploy: true

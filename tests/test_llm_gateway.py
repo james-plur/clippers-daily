@@ -3,13 +3,23 @@ import respx
 from httpx import Response
 
 import clippers_daily.llm_gateway as gateway
-from clippers_daily.llm import provider_settings
+from clippers_daily.llm import provider_settings, test_provider as check_provider
 
 
 def test_clippers_uses_local_gateway():
     providers = provider_settings({"gateway": {"enabled": True}})
     assert providers[0]["base_url"] == "http://127.0.0.1:8767/v1"
     assert providers[0]["model"] == "clippers-default"
+
+
+@respx.mock
+def test_provider_test_returns_upstream_error_instead_of_http_500(monkeypatch):
+    monkeypatch.setattr("clippers_daily.llm._provider_key", lambda provider: "secret")
+    respx.post("https://api.example/v1/chat/completions").mock(
+        return_value=Response(400, json={"error": {"message": "Model does not exist"}}))
+    result = check_provider({"id": "example", "base_url": "https://api.example/v1", "model": "missing"})
+    assert result["ok"] is False
+    assert "Model does not exist" in result["error"]
 
 
 @respx.mock

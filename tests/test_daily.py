@@ -154,6 +154,7 @@ def test_editor_maps_unambiguous_candidate_aliases(monkeypatch):
 def test_candidate_pool_places_deepseek_and_chinese_first(tmp_path):
     class Settings:
         fallback_days=7; lookback_hours=36; minimum_deepseek_items=1; minimum_zh_media_items=1; minimum_paperlab_items=1
+        target_items=10; maximum_items=15
         papers={"sources":[{"selection":{"topic_filter":{"keywords":[]}}}]}
     store = Store(tmp_path / "db.sqlite")
     deepseek = record("deep", source="DeepSeek"); deepseek.source_id="deepseek"
@@ -164,6 +165,7 @@ def test_candidate_pool_places_deepseek_and_chinese_first(tmp_path):
     assert candidates[:3] == [deepseek, chinese, paperlab]
     assert policy == {"minimum_deepseek_items": 1, "minimum_zh_media_items": 1,
                       "minimum_paperlab_items": 1,
+                      "minimum_important_code_items": 0, "target_items": 10,
                       "reserved_record_ids": [deepseek.id, chinese.id, paperlab.id]}
 
 

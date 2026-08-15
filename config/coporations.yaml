@@ -7,6 +7,7 @@ version: 1
 defaults:
   enabled: false
   channel_enabled: true
+  disable_github_channels: true
   priority: P2
   schedule: daily
   shadow_days: 7
@@ -21,10 +22,9 @@ corporations:
     focus: [gpu, cuda, inference, training, networking, nccl]
     channels:
       - {id: technical-blog, name: Technical Blog, priority: P0, type: rss, endpoint: "https://developer.nvidia.com/blog/feed/", schedule: "6h"}
-      - {id: tensorrt-llm, name: TensorRT-LLM Releases, priority: P0, type: github_release, endpoint: "https://github.com/NVIDIA/TensorRT-LLM/releases.atom", schedule: "2h"}
-      - {id: nccl, name: NCCL Releases, priority: P0, type: github_release, endpoint: "https://github.com/NVIDIA/nccl/releases.atom", schedule: "6h"}
-      - {id: megatron-lm, name: Megatron-LM Releases, priority: P0, type: github_release, endpoint: "https://github.com/NVIDIA/Megatron-LM/releases.atom", schedule: "6h"}
-
+      - {id: tensorrt-llm, name: TensorRT-LLM Releases, priority: P0, type: github_release, endpoint: "https://github.com/NVIDIA/TensorRT-LLM/releases.atom", schedule: "2h", enabled: false}
+      - {id: nccl, name: NCCL Releases, priority: P0, type: github_release, endpoint: "https://github.com/NVIDIA/nccl/releases.atom", schedule: "6h", enabled: false}
+      - {id: megatron-lm, name: Megatron-LM Releases, priority: P0, type: github_release, endpoint: "https://github.com/NVIDIA/Megatron-LM/releases.atom", schedule: "6h", enabled: false}
   - id: meta
     name: Meta
     enabled: true
@@ -34,8 +34,7 @@ corporations:
       - {id: engineering, name: Meta Engineering, priority: P0, type: rss, endpoint: "https://engineering.fb.com/feed/", schedule: "6h"}
       - {id: ai-blog, name: Meta AI Blog, priority: P0, type: html_monitor, endpoint: "https://ai.meta.com/blog/", schedule: daily}
       - {id: llama, name: Meta Llama Releases, priority: P0, type: github_org, endpoint: "https://github.com/meta-llama", schedule: "6h", enabled: false}
-      - {id: facebookresearch, name: Facebook Research Releases, priority: P1, type: github_org, endpoint: "https://github.com/facebookresearch", schedule: daily}
-
+      - {id: facebookresearch, name: Facebook Research Releases, priority: P1, type: github_org, endpoint: "https://github.com/facebookresearch", schedule: daily, enabled: false}
   - id: microsoft
     name: Microsoft
     enabled: true
@@ -67,8 +66,7 @@ corporations:
     channels:
       - {id: news, name: OpenAI News, priority: P0, type: rss, endpoint: "https://openai.com/news/rss.xml", schedule: "6h"}
       - {id: developer-changelog, name: OpenAI Developer Changelog, priority: P0, type: html_monitor, endpoint: "https://developers.openai.com/api/docs/changelog", schedule: "6h"}
-      - {id: github, name: OpenAI GitHub Releases, priority: P1, type: github_org, endpoint: "https://github.com/openai", schedule: daily}
-
+      - {id: github, name: OpenAI GitHub Releases, priority: P1, type: github_org, endpoint: "https://github.com/openai", schedule: daily, enabled: false}
   - id: xai
     name: xAI
     enabled: true
@@ -77,8 +75,7 @@ corporations:
     channels:
       - {id: news, name: xAI News, priority: P0, type: browser_monitor, endpoint: "https://x.ai/news", schedule: daily}
       - {id: docs, name: xAI Developer Docs, priority: P0, type: html_monitor, endpoint: "https://docs.x.ai/", schedule: daily}
-      - {id: github, name: xAI GitHub Releases, priority: P1, type: github_org, endpoint: "https://github.com/xai-org", schedule: daily}
-
+      - {id: github, name: xAI GitHub Releases, priority: P1, type: github_org, endpoint: "https://github.com/xai-org", schedule: daily, enabled: false}
   - id: alibaba
     name: Alibaba and Qwen
     enabled: true
@@ -86,7 +83,7 @@ corporations:
     focus: [qwen, models, cloud, inference, open_source]
     channels:
       - {id: qwen-blog, name: Qwen Blog, priority: P0, type: rss, endpoint: "https://qwenlm.github.io/blog/index.xml", schedule: "6h"}
-      - {id: qwen-github, name: QwenLM Releases, priority: P0, type: github_org, endpoint: "https://github.com/QwenLM", schedule: "6h"}
+      - {id: qwen-github, name: QwenLM Releases, priority: P0, type: github_org, endpoint: "https://github.com/QwenLM", schedule: "6h", enabled: false}
       - {id: alibaba-cloud-blog, name: Alibaba Cloud Blog, priority: P1, type: html_monitor, endpoint: "https://www.alibabacloud.com/blog", schedule: daily}
       - {id: modelscope, name: ModelScope Models, priority: P1, type: api_or_html, endpoint: "https://modelscope.cn/organization/qwen", schedule: daily}
 
@@ -98,8 +95,7 @@ corporations:
     channels:
       - {id: ai-lab, name: Tencent AI Lab, priority: P1, type: html_monitor, endpoint: "https://ai.tencent.com/ailab/en/index/", schedule: daily}
       - {id: hunyuan, name: Tencent Hunyuan, priority: P1, type: html_monitor, endpoint: "https://hunyuan.tencent.com/", schedule: daily}
-      - {id: hunyuan-github, name: Tencent Hunyuan Releases, priority: P1, type: github_org, endpoint: "https://github.com/Tencent-Hunyuan", schedule: daily}
-
+      - {id: hunyuan-github, name: Tencent Hunyuan Releases, priority: P1, type: github_org, endpoint: "https://github.com/Tencent-Hunyuan", schedule: daily, enabled: false}
   - id: bytedance
     name: ByteDance Seed
     enabled: true
@@ -107,7 +103,7 @@ corporations:
     focus: [models, multimodal, research, inference, cloud]
     channels:
       - {id: seed, name: ByteDance Seed, priority: P0, type: sitemap, endpoint: "https://seed.bytedance.com/sitemap.xml", schedule: daily}
-      - {id: bytedance-github, name: ByteDance GitHub Releases, priority: P1, type: github_org, endpoint: "https://github.com/bytedance", schedule: daily}
+      - {id: bytedance-github, name: ByteDance GitHub Releases, priority: P1, type: github_org, endpoint: "https://github.com/bytedance", schedule: daily, enabled: false}
       - {id: volcengine, name: Volcano Engine Product Updates, priority: P1, type: html_monitor, endpoint: "https://www.volcengine.com/product/ark", schedule: daily}
 
   - id: deepseek
@@ -117,7 +113,7 @@ corporations:
     focus: [models, reasoning, training, inference, open_source]
     channels:
       - {id: api-news, name: DeepSeek API News, priority: P0, type: sitemap, endpoint: "https://api-docs.deepseek.com/sitemap.xml", url_filter: "/news/", schedule: "6h"}
-      - {id: github, name: DeepSeek GitHub Releases, priority: P0, type: github_org, endpoint: "https://github.com/deepseek-ai", schedule: "6h"}
+      - {id: github, name: DeepSeek GitHub Releases, priority: P0, type: github_org, endpoint: "https://github.com/deepseek-ai", schedule: "6h", enabled: false}
       - {id: huggingface, name: DeepSeek Hugging Face, priority: P0, type: huggingface_org, endpoint: "https://huggingface.co/deepseek-ai", schedule: "6h"}
 
   - id: anthropic
@@ -130,8 +126,7 @@ corporations:
       - {id: engineering, name: Anthropic Engineering, priority: P0, type: sitemap, endpoint: "https://www.anthropic.com/sitemap.xml", url_filter: "/engineering/", schedule: "6h"}
       - {id: research, name: Anthropic Research, priority: P0, type: sitemap, endpoint: "https://www.anthropic.com/sitemap.xml", url_filter: "/research/", schedule: daily}
       - {id: release-notes, name: Anthropic API Release Notes, priority: P0, type: html_monitor, endpoint: "https://docs.anthropic.com/en/release-notes/overview", schedule: "6h"}
-      - {id: github, name: Anthropic GitHub Releases, priority: P1, type: github_org, endpoint: "https://github.com/anthropics", schedule: daily}
-
+      - {id: github, name: Anthropic GitHub Releases, priority: P1, type: github_org, endpoint: "https://github.com/anthropics", schedule: daily, enabled: false}
   - id: aws
     name: Amazon AWS
     enabled: false
@@ -140,8 +135,7 @@ corporations:
     channels:
       - {id: ml-blog, name: AWS Machine Learning Blog, priority: P0, type: rss, endpoint: "https://aws.amazon.com/blogs/machine-learning/feed/", schedule: "6h"}
       - {id: whats-new, name: AWS What's New, priority: P0, type: rss_or_html, endpoint: "https://aws.amazon.com/about-aws/whats-new/recent/feed/", schedule: "6h"}
-      - {id: neuron-sdk, name: AWS Neuron SDK Releases, priority: P1, type: github_org, endpoint: "https://github.com/aws-neuron", schedule: daily}
-
+      - {id: neuron-sdk, name: AWS Neuron SDK Releases, priority: P1, type: github_org, endpoint: "https://github.com/aws-neuron", schedule: daily, enabled: false}
   - id: amd
     name: AMD
     enabled: false
@@ -149,8 +143,7 @@ corporations:
     focus: [instinct, rocm, gpu, kernels, training, inference]
     channels:
       - {id: rocm-blog, name: AMD ROCm Blog, priority: P0, type: sitemap, endpoint: "https://rocm.blogs.amd.com/sitemap.xml", schedule: daily}
-      - {id: rocm-github, name: ROCm GitHub Releases, priority: P0, type: github_org, endpoint: "https://github.com/ROCm", schedule: "6h"}
-
+      - {id: rocm-github, name: ROCm GitHub Releases, priority: P0, type: github_org, endpoint: "https://github.com/ROCm", schedule: "6h", enabled: false}
   - id: intel
     name: Intel
     enabled: false
@@ -158,8 +151,7 @@ corporations:
     focus: [gaudi, openvino, oneapi, cpu, accelerators]
     channels:
       - {id: ai-blog, name: Intel AI Blog, priority: P1, type: browser_monitor, endpoint: "https://community.intel.com/t5/Blogs/Tech-Innovation/Artificial-Intelligence-AI/bg-p/blog-ai", schedule: daily}
-      - {id: openvino, name: OpenVINO Releases, priority: P1, type: github_release, endpoint: "https://github.com/openvinotoolkit/openvino/releases.atom", schedule: daily}
-
+      - {id: openvino, name: OpenVINO Releases, priority: P1, type: github_release, endpoint: "https://github.com/openvinotoolkit/openvino/releases.atom", schedule: daily, enabled: false}
   - id: apple
     name: Apple
     enabled: false
@@ -167,8 +159,7 @@ corporations:
     focus: [apple_silicon, mlx, on_device_ai, research]
     channels:
       - {id: ml-research, name: Apple Machine Learning Research, priority: P1, type: rss, endpoint: "https://machinelearning.apple.com/rss.xml", schedule: daily}
-      - {id: mlx, name: MLX Releases, priority: P1, type: github_release, endpoint: "https://github.com/ml-explore/mlx/releases.atom", schedule: daily}
-
+      - {id: mlx, name: MLX Releases, priority: P1, type: github_release, endpoint: "https://github.com/ml-explore/mlx/releases.atom", schedule: daily, enabled: false}
   - id: huawei
     name: Huawei
     enabled: false
@@ -176,7 +167,7 @@ corporations:
     focus: [ascend, mindspore, cann, accelerators, networking]
     channels:
       - {id: mindspore, name: MindSpore, priority: P0, type: html_monitor, endpoint: "https://www.mindspore.cn/", schedule: daily}
-      - {id: mindspore-github, name: MindSpore Releases, priority: P0, type: github_release, endpoint: "https://github.com/mindspore-ai/mindspore/releases.atom", schedule: daily}
+      - {id: mindspore-github, name: MindSpore Releases, priority: P0, type: github_release, endpoint: "https://github.com/mindspore-ai/mindspore/releases.atom", schedule: daily, enabled: false}
       - {id: ascend, name: Huawei Ascend, priority: P0, type: html_monitor, endpoint: "https://www.hiascend.com/", schedule: daily}
 
   - id: baidu
@@ -186,7 +177,7 @@ corporations:
     focus: [ernie, paddlepaddle, kunlun, cloud, training]
     channels:
       - {id: paddle, name: PaddlePaddle, priority: P1, type: html_monitor, endpoint: "https://www.paddlepaddle.org.cn/", schedule: daily}
-      - {id: paddle-github, name: PaddlePaddle Releases, priority: P1, type: github_release, endpoint: "https://github.com/PaddlePaddle/Paddle/releases.atom", schedule: daily}
+      - {id: paddle-github, name: PaddlePaddle Releases, priority: P1, type: github_release, endpoint: "https://github.com/PaddlePaddle/Paddle/releases.atom", schedule: daily, enabled: false}
       - {id: baidu-research, name: Baidu Research, priority: P2, type: html_monitor, endpoint: "https://research.baidu.com/", schedule: weekly}
 
   # 模型、数据与开源生态
@@ -198,8 +189,7 @@ corporations:
     channels:
       - {id: blog, name: Hugging Face Blog, priority: P0, type: rss, endpoint: "https://huggingface.co/blog/feed.xml", schedule: "6h"}
       - {id: daily-papers, name: Hugging Face Daily Papers, priority: P1, type: api, endpoint: "https://huggingface.co/api/daily_papers", schedule: daily}
-      - {id: github, name: Hugging Face GitHub Releases, priority: P1, type: github_org, endpoint: "https://github.com/huggingface", schedule: daily}
-
+      - {id: github, name: Hugging Face GitHub Releases, priority: P1, type: github_org, endpoint: "https://github.com/huggingface", schedule: daily, enabled: false}
   - id: mistral
     name: Mistral AI
     enabled: false
@@ -207,8 +197,7 @@ corporations:
     focus: [models, inference, open_source, api]
     channels:
       - {id: news, name: Mistral News, priority: P1, type: html_monitor, endpoint: "https://mistral.ai/news/", schedule: daily}
-      - {id: github, name: Mistral GitHub Releases, priority: P1, type: github_org, endpoint: "https://github.com/mistralai", schedule: daily}
-
+      - {id: github, name: Mistral GitHub Releases, priority: P1, type: github_org, endpoint: "https://github.com/mistralai", schedule: daily, enabled: false}
   - id: cohere
     name: Cohere
     enabled: false
@@ -235,8 +224,7 @@ corporations:
     focus: [glm, models, agents, api]
     channels:
       - {id: website, name: Zhipu AI, priority: P2, type: html_monitor, endpoint: "https://www.zhipuai.cn/", schedule: daily}
-      - {id: github, name: Zhipu GitHub Releases, priority: P2, type: github_org, endpoint: "https://github.com/THUDM", schedule: daily}
-
+      - {id: github, name: Zhipu GitHub Releases, priority: P2, type: github_org, endpoint: "https://github.com/THUDM", schedule: daily, enabled: false}
   - id: moonshot
     name: Moonshot AI and Kimi
     enabled: false
@@ -244,8 +232,7 @@ corporations:
     focus: [kimi, long_context, agents, api]
     channels:
       - {id: website, name: Moonshot AI, priority: P2, type: html_monitor, endpoint: "https://www.moonshot.cn/", schedule: daily}
-      - {id: github, name: Moonshot GitHub Releases, priority: P2, type: github_org, endpoint: "https://github.com/MoonshotAI", schedule: daily}
-
+      - {id: github, name: Moonshot GitHub Releases, priority: P2, type: github_org, endpoint: "https://github.com/MoonshotAI", schedule: daily, enabled: false}
   - id: minimax
     name: MiniMax
     enabled: false
@@ -253,8 +240,7 @@ corporations:
     focus: [models, multimodal, agents, api]
     channels:
       - {id: news, name: MiniMax News, priority: P2, type: html_monitor, endpoint: "https://www.minimaxi.com/news", schedule: daily}
-      - {id: github, name: MiniMax GitHub Releases, priority: P2, type: github_org, endpoint: "https://github.com/MiniMax-AI", schedule: daily}
-
+      - {id: github, name: MiniMax GitHub Releases, priority: P2, type: github_org, endpoint: "https://github.com/MiniMax-AI", schedule: daily, enabled: false}
   # 芯片、GPU 云与推理平台
   - id: cerebras
     name: Cerebras
@@ -263,8 +249,7 @@ corporations:
     focus: [wafer_scale, training, inference, hardware]
     channels:
       - {id: blog, name: Cerebras Blog, priority: P1, type: html_monitor, endpoint: "https://www.cerebras.ai/blog", schedule: daily}
-      - {id: github, name: Cerebras GitHub Releases, priority: P2, type: github_org, endpoint: "https://github.com/Cerebras", schedule: daily}
-
+      - {id: github, name: Cerebras GitHub Releases, priority: P2, type: github_org, endpoint: "https://github.com/Cerebras", schedule: daily, enabled: false}
   - id: groq
     name: Groq
     enabled: false
@@ -281,8 +266,7 @@ corporations:
     focus: [gpu_cloud, kubernetes, datacenter, inference]
     channels:
       - {id: blog, name: CoreWeave Blog, priority: P1, type: html_monitor, endpoint: "https://www.coreweave.com/blog", schedule: daily}
-      - {id: github, name: CoreWeave GitHub Releases, priority: P2, type: github_org, endpoint: "https://github.com/coreweave", schedule: daily}
-
+      - {id: github, name: CoreWeave GitHub Releases, priority: P2, type: github_org, endpoint: "https://github.com/coreweave", schedule: daily, enabled: false}
   - id: together-ai
     name: Together AI
     enabled: false
@@ -308,8 +292,7 @@ corporations:
     focus: [accelerators, hardware, compilers, open_source]
     channels:
       - {id: website, name: Tenstorrent, priority: P2, type: html_monitor, endpoint: "https://tenstorrent.com/", schedule: weekly}
-      - {id: github, name: Tenstorrent GitHub Releases, priority: P2, type: github_org, endpoint: "https://github.com/tenstorrent", schedule: daily}
-
+      - {id: github, name: Tenstorrent GitHub Releases, priority: P2, type: github_org, endpoint: "https://github.com/tenstorrent", schedule: daily, enabled: false}
   - id: sambanova
     name: SambaNova Systems
     enabled: false

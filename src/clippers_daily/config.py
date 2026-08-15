@@ -20,6 +20,8 @@ class Settings:
         self.corporations = load_yaml(self.config_dir / "coporations.yaml")
         self.media = load_yaml(self.config_dir / "media.yaml")
         self.papers = load_yaml(self.config_dir / "papers.yaml")
+        code_path = self.config_dir / "code.yaml"
+        self.code = load_yaml(code_path) if code_path.exists() else {"version": 1, "enabled": False}
         knowledge_path = self.config_dir / "knowledge.yaml"
         self.knowledge = load_yaml(knowledge_path) if knowledge_path.exists() else {}
         data_env = os.getenv("CLIPPERS_DATA_DIR")
@@ -35,6 +37,7 @@ class Settings:
         self.minimum_media_items = int(self.runtime.get("minimum_media_items", 1))
         self.minimum_paper_items = int(self.runtime.get("minimum_paper_items", 1))
         self.minimum_paperlab_items = int(self.runtime.get("minimum_paperlab_items", 1))
+        self.maximum_items = int(self.runtime.get("maximum_items", 15))
 
     def source(self, source_id: str) -> dict | None:
         for section, key in ((self.corporations, "corporations"), (self.media, "sources"), (self.papers, "sources")):

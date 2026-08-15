@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 
 from .collectors import collect_all, deduplicate
+from .code_source import code_status, sync_github
 from .config import Settings
 from .editor import build_digest
 from .mailer import send_html
@@ -27,6 +28,7 @@ def _publish_notes_best_effort(store: Store, run_id: str, markdown: str, digest,
 def _rank(store: Store, records: list) -> list:
     return sorted(records, key=lambda r: (
         0 if r.source_id == "deepseek" else 1,
+        0 if r.category == "code" and r.metadata.get("important_code") else 1,
         0 if r.category == "media" and r.language.lower().startswith("zh") else 1,
         PRIORITY.get(r.priority, 9),
         -store.preference_score(r),
@@ -38,8 +40,10 @@ def _candidate_pool(settings: Settings, store: Store, records: list, now: dateti
     delivered_ids, delivered_urls, delivered_titles = store.delivered_identities()
     unseen = [r for r in records if r.parse_status == "complete" and r.id not in delivered_ids and r.url not in delivered_urls
               and Store.normalize_title(r.title) not in delivered_titles]
+    unseen = [r for r in unseen if not (r.category == "company" and
+              (r.metadata.get("github_kind") or "github.com" in r.url.lower()))]
     fallback_cutoff = now - timedelta(days=settings.fallback_days)
-    company_media = [r for r in unseen if r.category in {"company", "media"} and r.published_at and r.published_at >= fallback_cutoff]
+    company_media = [r for r in unseen if r.category in {"company", "media", "code"} and r.published_at and r.published_at >= fallback_cutoff]
     papers = [r for r in unseen if r.category == "paper" and r.published_at and r.published_at >= now - timedelta(days=365)]
     paper_keywords = {str(k).lower() for k in settings.papers.get("sources", [{}])[-1].get("selection", {}).get("topic_filter", {}).get("keywords", [])}
     def paper_score(record):
@@ -59,17 +63,27 @@ def _candidate_pool(settings: Settings, store: Store, records: list, now: dateti
     zh_media = [r for r in eligible if r.category == "media" and r.language.lower().startswith("zh")]
     media = [r for r in eligible if r.category == "media"]
     company = [r for r in eligible if r.category == "company"]
+    code = [r for r in eligible if r.category == "code"]
+    important_code = sorted([r for r in code if r.metadata.get("important_code")],
+                            key=lambda r: int(r.metadata.get("importance_score", 0)), reverse=True)
     ordered = []
     paperlab_quota = min(len(paperlab), settings.minimum_paperlab_items)
-    for group in (deepseek[:10], zh_media[:20], paperlab[:paperlab_quota], media[:30], company[:60], papers[:40]):
+    base_target = int(getattr(settings, "target_items", 10))
+    effective_target = min(int(getattr(settings, "maximum_items", 15)), base_target + len(important_code))
+    fixed_quota = min(len(deepseek), settings.minimum_deepseek_items) + min(len(zh_media), settings.minimum_zh_media_items) + paperlab_quota
+    code_quota = min(len(important_code), max(0, effective_target - fixed_quota))
+    for group in (deepseek[:10], important_code[:code_quota], zh_media[:20], paperlab[:paperlab_quota],
+                  code[:40], media[:30], company[:60], papers[:40]):
         ordered.extend(r for r in group if r not in ordered)
     deepseek_quota = min(len(deepseek), settings.minimum_deepseek_items)
     zh_media_quota = min(len(zh_media), settings.minimum_zh_media_items)
     policy = {"minimum_deepseek_items": deepseek_quota,
               "minimum_zh_media_items": zh_media_quota,
               "minimum_paperlab_items": paperlab_quota,
+              "minimum_important_code_items": code_quota,
+              "target_items": effective_target,
               "reserved_record_ids": [r.id for r in deepseek[:deepseek_quota] + zh_media[:zh_media_quota]
-                                      + paperlab[:paperlab_quota]]}
+                                      + paperlab[:paperlab_quota] + important_code[:code_quota]]}
     return ordered, policy
 
 
@@ -82,6 +96,9 @@ def run_daily(settings: Settings, digest_date: date, send: bool = True, force_se
     store.start_run(run_id, digest_date.isoformat(), run_mode)
     try:
         records, reports = collect_all(settings)
+        if settings.code.get("enabled", False) and code_status(store, settings.code)["connected"]:
+            code_records, code_report = sync_github(settings.code, store, settings.runtime.get("llm", {}))
+            records.extend(code_records); reports.append(code_report)
         store.save_records(records)
         store.save_reports(run_id, reports)
         historical = store.recent_records(datetime.now(timezone.utc) - timedelta(days=settings.fallback_days))
@@ -91,6 +108,7 @@ def run_daily(settings: Settings, digest_date: date, send: bool = True, force_se
             "records": len(records), "candidates": len(candidates),
             "deepseek_candidates": sum(r.source_id == "deepseek" for r in candidates),
             "zh_media_candidates": sum(r.category == "media" and r.language.lower().startswith("zh") for r in candidates),
+            "important_code_candidates": sum(r.category == "code" and r.metadata.get("important_code") for r in candidates),
             "policy": policy,
         })
         if not candidates:
@@ -98,7 +116,7 @@ def run_daily(settings: Settings, digest_date: date, send: bool = True, force_se
         for report in reports:
             report.eligible = sum(1 for record in candidates if record.source_id == report.source_id and
                                   (record.channel_id == report.channel_id or report.channel_id == "conference-catalog"))
-        digest = build_digest(candidates, digest_date, settings.target_items, policy,
+        digest = build_digest(candidates, digest_date, int(policy.get("target_items", settings.target_items)), policy,
                               settings.runtime.get("llm", {}))
         selected_ids = {record_id for item in digest.items for record_id in item.record_ids}
         for report in reports:

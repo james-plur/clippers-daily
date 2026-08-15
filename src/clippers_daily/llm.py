@@ -79,8 +79,11 @@ def test_provider(provider: dict) -> dict:
     key = _provider_key(provider)
     if not key:
         return {"ok": False, "error": "API key 未配置"}
-    client = OpenAI(api_key=key, base_url=provider["base_url"])
-    response = client.chat.completions.create(model=provider["model"],
-        messages=[{"role": "user", "content": "Return JSON: {\"ok\":true}"}],
-        response_format={"type": "json_object"}, max_tokens=64)
-    return {"ok": bool(response.choices), "model": provider["model"]}
+    try:
+        client = OpenAI(api_key=key, base_url=provider["base_url"])
+        response = client.chat.completions.create(model=provider["model"],
+            messages=[{"role": "user", "content": "Return JSON: {\"ok\":true}"}],
+            response_format={"type": "json_object"}, max_tokens=64)
+        return {"ok": bool(response.choices), "model": provider["model"]}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)[:500], "model": provider["model"]}

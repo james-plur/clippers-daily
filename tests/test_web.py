@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import stat
 
 from argon2 import PasswordHasher
 from fastapi.testclient import TestClient
@@ -9,7 +10,7 @@ from fastapi.testclient import TestClient
 def test_console_auth_and_config(tmp_path, monkeypatch):
     config = tmp_path / "config"; config.mkdir()
     source = __import__("pathlib").Path(__file__).parents[1] / "config"
-    for name in ("runtime.yaml","coporations.yaml","media.yaml","papers.yaml"):
+    for name in ("runtime.yaml","coporations.yaml","media.yaml","papers.yaml","code.yaml"):
         text = (source / name).read_text(encoding="utf-8")
         if name == "runtime.yaml":
             text = text.replace("data/clippers.db", str(tmp_path / "data/clippers.db")).replace("data/reports", str(tmp_path / "data/reports"))
@@ -28,6 +29,9 @@ def test_console_auth_and_config(tmp_path, monkeypatch):
         assert login.status_code == 200
         csrf = login.json()["csrf"]
         assert client.get("/api/config/runtime").status_code == 200
+        code_status = client.get("/api/code/status")
+        assert code_status.status_code == 200 and code_status.json()["connected"] is False
+        assert client.post("/api/code/github/disconnect").status_code == 403
         assert client.put("/api/runtime/schedule", json={"target_items": 8}).status_code == 403
         saved = client.put("/api/runtime/schedule", headers={"X-CSRF-Token":csrf}, json={"target_items": 8})
         assert saved.status_code == 200
@@ -45,3 +49,24 @@ def test_console_auth_and_config(tmp_path, monkeypatch):
                                 json={"date":"2026-08-14","confirm":True})
         assert duplicate.status_code == 409
         assert client.get("/api/digests").status_code == 200
+
+
+def test_write_secret_uses_restricted_permissions_and_reports_storage_errors(tmp_path, monkeypatch):
+    import clippers_daily.web as web
+
+    secret = tmp_path / "secrets" / "siliconflow_api_key"
+    web.write_secret(secret, "  test-key  ")
+    assert secret.read_text(encoding="utf-8") == "test-key\n"
+    assert stat.S_IMODE(secret.stat().st_mode) == 0o600
+
+    def denied(*args, **kwargs):
+        raise PermissionError("read-only")
+
+    monkeypatch.setattr(type(secret), "write_text", denied)
+    try:
+        web.write_secret(secret, "replacement")
+    except web.HTTPException as exc:
+        assert exc.status_code == 503
+        assert "目录权限" in exc.detail
+    else:
+        raise AssertionError("unwritable secret storage must return a service error")

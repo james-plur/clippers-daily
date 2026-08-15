@@ -81,6 +81,23 @@ CREATE TABLE IF NOT EXISTS job_logs (
   message TEXT NOT NULL, detail TEXT NOT NULL DEFAULT '{}'
 );
 CREATE INDEX IF NOT EXISTS job_logs_run_idx ON job_logs(run_id, happened_at);
+CREATE TABLE IF NOT EXISTS code_accounts (
+  provider TEXT PRIMARY KEY, external_id TEXT, login TEXT, status TEXT NOT NULL DEFAULT 'disconnected',
+  scopes TEXT NOT NULL DEFAULT '[]', token_expires_at TEXT, last_sync_at TEXT, updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS code_repositories (
+  provider TEXT NOT NULL, full_name TEXT NOT NULL, html_url TEXT NOT NULL,
+  default_branch TEXT, last_sha TEXT, starred_at TEXT, muted INTEGER NOT NULL DEFAULT 0,
+  private INTEGER NOT NULL DEFAULT 0, last_checked_at TEXT, metadata TEXT NOT NULL DEFAULT '{}',
+  PRIMARY KEY(provider,full_name)
+);
+CREATE TABLE IF NOT EXISTS code_changes (
+  provider TEXT NOT NULL, full_name TEXT NOT NULL, base_sha TEXT NOT NULL, head_sha TEXT NOT NULL,
+  detected_at TEXT NOT NULL, published_at TEXT, status TEXT NOT NULL, important INTEGER NOT NULL DEFAULT 0,
+  importance_score INTEGER, analysis TEXT NOT NULL DEFAULT '{}', record_id TEXT,
+  PRIMARY KEY(provider,full_name,base_sha,head_sha)
+);
+CREATE INDEX IF NOT EXISTS code_changes_status_idx ON code_changes(status,important,detected_at);
 """
 
 

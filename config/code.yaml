@@ -1,0 +1,23 @@
+version: 1
+enabled: true
+provider: github
+sync_schedule: daily
+importance_threshold: 75
+max_diff_bytes: 200000
+max_items: 15
+public_repositories_only: true
+organization_rollup: single
+baseline_on_first_sync: true
+github:
+  api_url: https://api.github.com
+  authorize_url: https://github.com/login/oauth/authorize
+  token_url: https://github.com/login/oauth/access_token
+  client_id_file: /srv/clippers/secrets/github_app_client_id
+  client_secret_file: /srv/clippers/secrets/github_app_client_secret
+  token_file: /srv/clippers/secrets/github_user_token.json
+  callback_url: https://paperlab.cloud/api/code/github/callback
+gitlab:
+  enabled: false
+  api_url: https://gitlab.com/api/v4
+  token_file: /srv/clippers/secrets/gitlab_user_token
+muted_repositories: []

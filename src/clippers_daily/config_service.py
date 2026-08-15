@@ -16,6 +16,7 @@ SECTIONS = {
     "corporations": "coporations.yaml",
     "media": "media.yaml",
     "papers": "papers.yaml",
+    "code": "code.yaml",
 }
 
 
@@ -28,6 +29,9 @@ def validate_section(section: str, value: dict) -> None:
         target = int(value.get("target_items", 0))
         if not 1 <= target <= 30:
             raise ValueError("target_items 必须在 1 到 30 之间")
+        maximum = int(value.get("maximum_items", target))
+        if not target <= maximum <= 30:
+            raise ValueError("maximum_items 必须不小于 target_items 且不超过 30")
         if (int(value.get("minimum_deepseek_items", 0)) + int(value.get("minimum_zh_media_items", 0))
                 + int(value.get("minimum_paperlab_items", 0))) > target:
             raise ValueError("硬配额之和不能超过日报条数")
@@ -51,6 +55,11 @@ def validate_section(section: str, value: dict) -> None:
         if len(provider_ids) != len(set(provider_ids)):
             raise ValueError("模型 provider id 必须唯一")
     collection_key = {"corporations": "corporations", "media": "sources", "papers": "sources"}.get(section)
+    if section == "code":
+        if not 0 <= int(value.get("importance_threshold", 75)) <= 100:
+            raise ValueError("代码重要性阈值必须在 0 到 100 之间")
+        if int(value.get("max_diff_bytes", 200000)) < 1000:
+            raise ValueError("max_diff_bytes 不能小于 1000")
     if collection_key:
         seen = set()
         for source in value.get(collection_key, []):

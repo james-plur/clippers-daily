@@ -16,7 +16,8 @@
         <button data-page="dashboard" class="active"><span>01</span>总览</button>
         <button data-page="digests"><span>02</span>历史日报</button>
         <button data-page="sources"><span>03</span>信息源</button>
-        <button data-page="config"><span>04</span>配置中心</button>
+        <button data-page="code"><span>04</span>代码</button>
+        <button data-page="config"><span>05</span>配置中心</button>
         <button data-page="mail"><span>05</span>邮件与模型</button>
         <button data-page="git"><span>06</span>Git</button>
         <button data-page="logs"><span>07</span>运行日志</button>
@@ -43,9 +44,17 @@
         <article class="panel"><div class="panel-head"><div><p class="eyebrow">COLLECTORS</p><h2>信息源管理</h2></div><div class="inline-form"><input id="source-test-id" placeholder="source id"><button class="secondary" id="source-test">单源预检</button></div></div><div class="table-wrap"><table><thead><tr><th>来源</th><th>语言</th><th>优先级</th><th>最近状态</th><th>候选/入选</th><th>启用</th></tr></thead><tbody id="source-table"></tbody></table></div><pre id="source-test-output" class="console-output hidden"></pre></article>
       </section>
 
+      <section class="page" id="page-code">
+        <div class="split-grid">
+          <article class="panel"><div class="panel-head"><div><p class="eyebrow">GITHUB ACCOUNT</p><h2>个人代码关注</h2></div><div class="top-actions"><a class="button-link primary" id="github-connect" href="/api/code/github/connect">关联 GitHub</a><button class="secondary" id="github-disconnect">断开</button></div></div><div id="code-status" class="definition-list"></div><div class="stack-form"><label>GitHub App Client ID<input id="github-client-id" autocomplete="off"></label><label>GitHub App Client Secret<input id="github-client-secret" type="password" autocomplete="new-password"></label><div class="row-actions"><button class="secondary" id="save-github-app">保存 App 凭据</button><button class="primary" id="code-sync">立即同步</button></div></div><p class="hint">只读取公开 Star 仓库和 Following 中的组织；首次同步仅建立 SHA 基线。</p></article>
+          <article class="panel"><div class="panel-head"><div><p class="eyebrow">PROVIDERS</p><h2>代码平台</h2></div></div><div class="definition-list"><dt>GitHub</dt><dd>完整支持</dd><dt>GitLab</dt><dd>接口已预留，当前未启用</dd><dt>日报上限</dt><dd>重要更新可从 10 条扩展至 15 条</dd></div><div class="inline-form"><input id="code-test-repo" placeholder="owner/repository"><button class="secondary" id="code-test">单仓库测试</button></div><pre id="code-test-output" class="console-output hidden"></pre></article>
+        </div>
+        <article class="panel" style="margin-top:14px"><div class="panel-head"><div><p class="eyebrow">STARRED REPOSITORIES</p><h2>追踪仓库</h2></div></div><div class="table-wrap"><table><thead><tr><th>仓库</th><th>默认分支</th><th>最近检查</th><th>基线 SHA</th><th>状态</th></tr></thead><tbody id="code-repositories"></tbody></table></div></article>
+      </section>
+
       <section class="page" id="page-config">
         <article class="panel structured-card"><div class="panel-head"><div><p class="eyebrow">DAILY POLICY</p><h2>日报规则</h2></div><button class="primary" id="save-schedule">保存规则</button></div><div id="schedule-form" class="form-grid"></div></article>
-        <article class="panel config-panel"><div class="panel-head"><div><p class="eyebrow">CONFIGURATION</p><h2>高级配置</h2></div><div class="segmented" id="config-tabs"><button data-section="runtime" class="active">运行</button><button data-section="corporations">企业</button><button data-section="media">媒体</button><button data-section="papers">论文</button></div></div><div class="editor-grid"><div><label class="field-label">高级 YAML</label><textarea id="yaml-editor" spellcheck="false"></textarea><div class="editor-actions"><span id="config-state">已载入</span><button class="primary" id="save-config">差异确认并保存</button></div></div><div><p class="field-label">版本记录</p><div id="revision-list" class="revision-list"></div></div></div></article>
+        <article class="panel config-panel"><div class="panel-head"><div><p class="eyebrow">CONFIGURATION</p><h2>高级配置</h2></div><div class="segmented" id="config-tabs"><button data-section="runtime" class="active">运行</button><button data-section="corporations">企业</button><button data-section="media">媒体</button><button data-section="papers">论文</button><button data-section="code">代码</button></div></div><div class="editor-grid"><div><label class="field-label">高级 YAML</label><textarea id="yaml-editor" spellcheck="false"></textarea><div class="editor-actions"><span id="config-state">已载入</span><button class="primary" id="save-config">差异确认并保存</button></div></div><div><p class="field-label">版本记录</p><div id="revision-list" class="revision-list"></div></div></div></article>
       </section>
 
       <section class="page" id="page-mail">
@@ -54,7 +63,7 @@
 
       <section class="page" id="page-git"><div class="split-grid"><article class="panel"><div class="panel-head"><div><p class="eyebrow">SOURCE CONTROL</p><h2>仓库状态</h2></div><button class="secondary" id="git-test">测试远端</button></div><div id="git-status" class="definition-list"></div></article><article class="panel"><div class="panel-head"><div><p class="eyebrow">SYNC POLICY</p><h2>Git 配置</h2></div><button class="primary" id="save-git">保存</button></div><div id="git-form" class="stack-form"></div><p class="hint">SSH 私钥由服务器文件权限管理，控制台不会回显私钥。</p></article></div></section>
 
-      <section class="page" id="page-logs"><article class="panel"><div class="panel-head"><div><p class="eyebrow">OBSERVABILITY</p><h2>运行日志</h2></div><select id="log-component"><option value="">全部组件</option><option value="daily">日报</option><option value="web">控制台</option><option value="collector">采集器</option><option value="paperlab">PaperLab</option></select></div><div id="log-list" class="log-list"></div></article></section>
+      <section class="page" id="page-logs"><article class="panel"><div class="panel-head"><div><p class="eyebrow">OBSERVABILITY</p><h2>运行日志</h2></div><select id="log-component"><option value="">全部组件</option><option value="daily">日报</option><option value="code">代码</option><option value="web">控制台</option><option value="collector">采集器</option><option value="paperlab">PaperLab</option></select></div><div id="log-list" class="log-list"></div></article></section>
 
       <section class="page" id="page-paperlab"><div class="split-grid"><article class="panel"><div class="panel-head"><div><p class="eyebrow">PLUGIN STATUS</p><h2>PaperLab</h2></div><a class="button-link primary" href="/paperlab/">打开完整界面 →</a></div><div id="paperlab-status" class="definition-list"></div></article><article class="panel"><div class="panel-head"><div><p class="eyebrow">SYNC</p><h2>最近同步</h2></div><button class="secondary" id="paperlab-sync">立即同步</button></div><div id="paperlab-runs" class="list"></div></article></div></section>
     </main>

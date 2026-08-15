@@ -23,6 +23,8 @@ from pydantic import BaseModel, Field
 from .app import run_daily
 from .auth import AuthManager, Session, secret_status
 from .collectors import collect_source
+from .code_source import (code_status, disconnect_github, exchange_github_code,
+                          github_connect_url, sync_github)
 from .config import Settings
 from .config_service import ConfigManager, SECTIONS
 from .llm import test_provider
@@ -37,6 +39,7 @@ STORE = Store(SETTINGS.database)
 CONFIG = ConfigManager(SETTINGS.config_dir, STORE)
 AUTH = AuthManager(int(SETTINGS.runtime.get("web", {}).get("session_ttl_seconds", 86400)))
 JOB_LOCK = threading.Lock()
+OAUTH_STATES: dict[str, tuple[str, float]] = {}
 COOKIE = "clippers_session"
 
 
@@ -73,6 +76,29 @@ class JobBody(BaseModel):
 
 class SecretBody(BaseModel):
     value: str = Field(min_length=1)
+
+
+class GitHubAppBody(BaseModel):
+    client_id: str = Field(min_length=1)
+    client_secret: str = Field(min_length=1)
+
+
+class RepositoryBody(BaseModel):
+    muted: bool
+
+
+class RepositoryTestBody(BaseModel):
+    repository: str = Field(pattern=r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+
+
+def write_secret(path: Path, value: str) -> None:
+    """Write a service secret without leaking filesystem exceptions to clients."""
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(value.strip() + "\n", encoding="utf-8")
+        path.chmod(0o600)
+    except OSError as exc:
+        raise HTTPException(503, "密钥存储暂时不可写，请检查服务目录权限") from exc
 
 
 def reject_secret_fields(value: object) -> None:
@@ -201,6 +227,87 @@ def create_app() -> FastAPI:
                                "channels": len(source.get("channels", [])) or 1, "last_run": dict(last) if last else None})
         return values
 
+    @app.get("/api/code/status")
+    def get_code_status(session: Session = Depends(current_session)) -> dict:
+        return code_status(STORE, CONFIG.read("code"))
+
+    @app.put("/api/secrets/code/github-app")
+    def put_github_app(body: GitHubAppBody, session: Session = Depends(csrf_session)) -> dict:
+        secret_dir = Path(os.getenv("CLIPPERS_SECRET_DIR", "/srv/clippers/secrets"))
+        write_secret(secret_dir / "github_app_client_id", body.client_id)
+        write_secret(secret_dir / "github_app_client_secret", body.client_secret)
+        audit("code.github_app.configure", "github", {})
+        return {"ok": True, "configured": True}
+
+    @app.get("/api/code/github/connect")
+    def github_connect(session: Session = Depends(current_session)) -> RedirectResponse:
+        import secrets
+        import time
+        state, verifier = secrets.token_urlsafe(32), secrets.token_urlsafe(64)
+        OAUTH_STATES[state] = (verifier, time.time() + 600)
+        try:
+            return RedirectResponse(github_connect_url(CONFIG.read("code"), state, verifier), status_code=303)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @app.get("/api/code/github/callback")
+    def github_callback(code: str, state: str) -> RedirectResponse:
+        import time
+        pending = OAUTH_STATES.pop(state, None)
+        if not pending or pending[1] < time.time():
+            raise HTTPException(400, "GitHub OAuth state 无效或已过期")
+        try:
+            exchange_github_code(CONFIG.read("code"), code, pending[0])
+        except (ValueError, httpx.HTTPError) as exc:
+            raise HTTPException(502, f"GitHub 授权失败：{exc}") from exc
+        audit("code.github.connect", "github", {})
+        return RedirectResponse("/#code", status_code=303)
+
+    @app.post("/api/code/github/disconnect")
+    def github_disconnect(session: Session = Depends(csrf_session)) -> dict:
+        disconnect_github(CONFIG.read("code"), STORE)
+        audit("code.github.disconnect", "github", {})
+        return {"ok": True}
+
+    @app.get("/api/code/repositories")
+    def code_repositories(session: Session = Depends(current_session)) -> list[dict]:
+        return [dict(row) for row in STORE.db.execute(
+            "SELECT provider,full_name,html_url,default_branch,last_sha,starred_at,muted,last_checked_at,metadata "
+            "FROM code_repositories ORDER BY muted,full_name")]
+
+    @app.put("/api/code/repositories/{provider}/{owner}/{repo}")
+    def update_code_repository(provider: str, owner: str, repo: str, body: RepositoryBody,
+                               session: Session = Depends(csrf_session)) -> dict:
+        with STORE.lock, STORE.db:
+            cursor = STORE.db.execute("UPDATE code_repositories SET muted=? WHERE provider=? AND full_name=?",
+                                      (int(body.muted), provider, f"{owner}/{repo}"))
+        if not cursor.rowcount:
+            raise HTTPException(404, "仓库不存在")
+        audit("code.repository.mute" if body.muted else "code.repository.unmute", f"{provider}/{owner}/{repo}", {})
+        return {"ok": True, "muted": body.muted}
+
+    @app.post("/api/jobs/code-sync")
+    def code_sync(session: Session = Depends(csrf_session)) -> dict:
+        if not JOB_LOCK.acquire(blocking=False):
+            raise HTTPException(409, "已有任务运行中")
+        run_id = "code:" + datetime.now(timezone.utc).isoformat()
+        def runner():
+            try:
+                STORE.log(run_id, "info", "code", "GitHub 账户同步开始")
+                records, report = sync_github(CONFIG.read("code"), STORE, CONFIG.read("runtime").get("llm", {}))
+                STORE.save_records(records); STORE.save_reports(run_id, [report])
+                STORE.log(run_id, "info" if report.status == "success" else "error", "code",
+                          "GitHub 账户同步完成", report.model_dump(mode="json"))
+            finally:
+                JOB_LOCK.release()
+        threading.Thread(target=runner, daemon=True).start()
+        return {"ok": True, "run_id": run_id, "status": "started"}
+
+    @app.post("/api/jobs/code-repository-test")
+    def code_repository_test(body: RepositoryTestBody, session: Session = Depends(csrf_session)) -> dict:
+        records, report = sync_github(CONFIG.read("code"), STORE, CONFIG.read("runtime").get("llm", {}), body.repository)
+        return {"records": [r.model_dump(mode="json") for r in records], "report": report.model_dump(mode="json")}
+
     @app.put("/api/sources/{source_id}")
     def update_source(source_id: str, body: SourceBody, session: Session = Depends(csrf_session)) -> dict:
         for section_name, key in (("corporations", "corporations"), ("media", "sources"), ("papers", "sources")):
@@ -246,7 +353,7 @@ def create_app() -> FastAPI:
         if area == "schedule":
             for key in ("target_items", "lookback_hours", "fallback_days", "minimum_deepseek_items",
                         "minimum_zh_media_items", "minimum_media_items", "minimum_paper_items",
-                        "minimum_paperlab_items"):
+                        "minimum_paperlab_items", "maximum_items"):
                 if key in body:
                     runtime[key] = body[key]
         else:
@@ -271,10 +378,8 @@ def create_app() -> FastAPI:
         if not provider:
             raise HTTPException(404, "模型提供方不存在")
         secret_dir = Path(os.getenv("CLIPPERS_SECRET_DIR", "/srv/clippers/secrets"))
-        secret_dir.mkdir(parents=True, exist_ok=True)
         path = secret_dir / f"{provider_id}_api_key"
-        path.write_text(body.value.strip() + "\n", encoding="utf-8")
-        path.chmod(0o600)
+        write_secret(path, body.value)
         provider["api_key_file"] = str(path)
         CONFIG.write("runtime", runtime)
         return {"ok": True, "configured": True}
@@ -286,10 +391,8 @@ def create_app() -> FastAPI:
         if not sender:
             raise HTTPException(404, "发件配置不存在")
         secret_dir = Path(os.getenv("CLIPPERS_SECRET_DIR", "/srv/clippers/secrets"))
-        secret_dir.mkdir(parents=True, exist_ok=True)
         path = secret_dir / f"smtp_{sender_id}_password"
-        path.write_text(body.value.strip() + "\n", encoding="utf-8")
-        path.chmod(0o600)
+        write_secret(path, body.value)
         sender["password_file"] = str(path)
         CONFIG.write("runtime", runtime)
         return {"ok": True, "configured": True}

@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-Category = Literal["company", "media", "paper"]
+Category = Literal["company", "media", "paper", "code"]
 
 
 class Record(BaseModel):

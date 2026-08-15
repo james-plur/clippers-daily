@@ -7,12 +7,14 @@ Clippers Daily 是独立的 AI 基础设施日报服务。它负责采集、选�
 
 ## 关键规则
 
-- 默认每天 08:00（Asia/Shanghai）生成 7 条日报。
+- 默认每天 08:00（Asia/Shanghai）生成最多 10 条日报；重要代码更新可扩展到最多 15 条。
 - 合格 DeepSeek 新动态存在时至少选择 1 条；该硬约束高于模型评分。
 - 合格中文媒体候选存在时至少选择 1 条，机器之心在中文媒体中为最高优先级。
 - 未入选内容在 7 天窗口内继续参与选稿，历史投递按 ID、规范 URL 和标题去重。
 - 同一日期默认禁止重复发送，只有 `--force-send` 或 API 的 `force=true` 能显式重发。
 - 日报条目支持点赞；点赞会提升对应来源、类别、关键词和标签的推荐权重，取消点赞会撤销增益。权重限制在 `[-5,5]`，每日衰减 `0.995`。
+- 代码是与企业、媒体、论文并列的第四类来源。GitHub App 只读取个人账户 Star 的公开仓库和 Following
+  中的组织；首次同步只建立 SHA 基线，后续逐仓库分析改动，组织更新合并为一个概览。
 
 ## 本地运行
 
@@ -39,7 +41,7 @@ set -a; source .env; set +a
 
 大模型统一由监听 `127.0.0.1:8767` 的 OpenAI 兼容网关提供。Clippers 和 PaperLab 均使用
 `http://127.0.0.1:8767/v1` 与模型别名 `clippers-default`；网关默认路由到 SiliconFlow 的
-`Pro/deepseek-ai/DeepSeek-V4`，上游 API Key 只需在 Clippers 控制台配置一次。
+`deepseek-ai/DeepSeek-V4-Pro`，上游 API Key 只需在 Clippers 控制台配置一次。
 
 认证复用 `PAPERLAB_ADMIN_USERNAME` 和 `PAPERLAB_ADMIN_PASSWORD_HASH`。密码哈希使用 Argon2；
 模型和 SMTP 密钥只写入 `/srv/clippers/secrets/` 的 0600 文件，API 不回显密钥。
@@ -55,6 +57,9 @@ set -a; source .env; set +a
 - `POST /api/jobs/daily-preview`、`POST /api/jobs/daily-send`
 - `GET /api/jobs`、`GET /api/logs`
 - `GET /api/paperlab/status`、`POST /api/paperlab/sync`
+- `GET /api/code/status`、`GET /api/code/repositories`
+- `GET /api/code/github/connect`、`GET /api/code/github/callback`、`POST /api/code/github/disconnect`
+- `POST /api/jobs/code-sync`、`POST /api/jobs/code-repository-test`
 
 所有修改接口都要求登录会话和 CSRF token；正式发送和 PaperLab 同步还要求二次确认。
 

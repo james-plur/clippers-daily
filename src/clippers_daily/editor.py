@@ -11,7 +11,7 @@ from .models import Digest, Record
 SYSTEM = """你是 Clippers 的 AI 基础设施日报编辑。只使用提供的候选记录，不得补写候选中没有的事实。
 输出中文；专业、准确、克制。优先时效性、技术深度、来源权威性和 AI 基础设施相关性。
 合并同一事件的多来源报道。相同会议集中发布的论文应汇总为一个条目。
-候选充足时必须达到目标条数。只要候选中存在相应类别，就必须包含媒体和论文；7条日报通常选2个媒体条目、2至3个论文条目，其余选企业动态。媒体条目必须来自category=media的独立媒体候选，不得把企业博客冒充媒体。
+候选充足时必须达到目标条数。只要候选中存在相应类别，就必须包含媒体和论文。重要代码更新优先，每个 Star 仓库必须独立成条；关注组织汇总可以合并为一个条目。媒体条目必须来自category=media的独立媒体候选，不得把企业博客冒充媒体。
 每条详情目标约500个中文字符，300至600字均可接受。详情应具体说明事件背景、关键事实或技术机制、量化结果（候选未提供则明确未披露）、影响范围、局限性以及为什么值得关注；不得用“以原始链接为准”等空泛句子凑字数。
 每个条目给出 3 至 8 个关键词和 2 至 6 个适合 Obsidian 的中文标签；标签不要包含空格或 #。"""
 
@@ -33,7 +33,7 @@ SCHEMA = {
                     "title": {"type": "string"}, "source": {"type": "string"},
                     "reason": {"type": "string"}, "detail": {"type": "string"},
                     "links": {"type": "array", "items": {"type": "string"}},
-                    "category": {"type": "string", "enum": ["company", "media", "paper"]},
+                    "category": {"type": "string", "enum": ["company", "media", "paper", "code"]},
                     "keywords": {"type": "array", "minItems": 3, "maxItems": 8, "items": {"type": "string"}},
                     "tags": {"type": "array", "minItems": 2, "maxItems": 6, "items": {"type": "string"}},
                 },
@@ -66,12 +66,15 @@ def build_digest(records: list[Record], digest_date: date, target: int, policy: 
     deepseek_quota = int(policy.get("minimum_deepseek_items", policy.get("require_deepseek", 0)))
     zh_media_quota = int(policy.get("minimum_zh_media_items", policy.get("require_zh_media", 0)))
     paperlab_quota = int(policy.get("minimum_paperlab_items", 0))
+    code_quota = int(policy.get("minimum_important_code_items", 0))
     if deepseek_quota:
         requirements.append(f"至少 {deepseek_quota} 个条目必须引用 source_id=deepseek 的记录")
     if zh_media_quota:
         requirements.append(f"至少 {zh_media_quota} 个条目必须引用 language=zh-CN 且 category=media 的记录")
     if paperlab_quota:
         requirements.append(f"至少 {paperlab_quota} 个条目必须引用 source_id=paperlab 的记录")
+    if code_quota:
+        requirements.append(f"至少 {code_quota} 个条目必须引用 metadata.important_code=true 的代码记录，每个仓库单独成条")
     if policy.get("reserved_record_ids"):
         required_aliases = [reverse_aliases[item] for item in policy["reserved_record_ids"] if item in reverse_aliases]
         requirements.append("必须引用这些确定性保底候选：" + ", ".join(required_aliases))
@@ -139,6 +142,7 @@ def _validate_digest(digest: Digest, records: list[Record], target: int, policy:
     deepseek_quota = int(policy.get("minimum_deepseek_items", policy.get("require_deepseek", 0)))
     zh_media_quota = int(policy.get("minimum_zh_media_items", policy.get("require_zh_media", 0)))
     paperlab_quota = int(policy.get("minimum_paperlab_items", 0))
+    code_quota = int(policy.get("minimum_important_code_items", 0))
     selected_deepseek_items = sum(any(allowed[record_id].source_id == "deepseek" for record_id in item.record_ids)
                                  for item in digest.items)
     selected_zh_items = sum(any(allowed[record_id].category == "media" and
@@ -146,12 +150,16 @@ def _validate_digest(digest: Digest, records: list[Record], target: int, policy:
                             for item in digest.items)
     selected_paperlab_items = sum(any(allowed[record_id].source_id == "paperlab" for record_id in item.record_ids)
                                   for item in digest.items)
+    selected_code_items = sum(any(allowed[record_id].category == "code" and allowed[record_id].metadata.get("important_code")
+                                  for record_id in item.record_ids) for item in digest.items)
     if selected_deepseek_items < deepseek_quota:
         raise ValueError(f"DeepSeek 条目不足：需要 {deepseek_quota}，实际 {selected_deepseek_items}")
     if selected_zh_items < zh_media_quota:
         raise ValueError(f"中文媒体条目不足：需要 {zh_media_quota}，实际 {selected_zh_items}")
     if selected_paperlab_items < paperlab_quota:
         raise ValueError(f"PaperLab 条目不足：需要 {paperlab_quota}，实际 {selected_paperlab_items}")
+    if selected_code_items < code_quota:
+        raise ValueError(f"重要代码条目不足：需要 {code_quota}，实际 {selected_code_items}")
     missing_reserved = set(policy.get("reserved_record_ids", [])) - selected_ids
     if missing_reserved:
         raise ValueError(f"未选择确定性保底候选: {sorted(missing_reserved)}")

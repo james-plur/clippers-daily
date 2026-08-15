@@ -14,8 +14,13 @@ case "$release" in
 esac
 [[ -f "$release/pyproject.toml" ]] || { echo "invalid release" >&2; exit 2; }
 
-install -d -m 0755 "$root/releases" "$root/data" "$root/config" "$root/backups"
-install -d -m 0700 "$root/secrets"
+install -d -m 0755 "$root/releases" "$root/backups"
+# The web and daily services run as ubuntu and must be able to update these
+# persistent directories.  Reapply ownership on upgrades as well as on the
+# first install so deployments created by root do not make API secret writes
+# fail with HTTP 500.
+install -d -o ubuntu -g ubuntu -m 0755 "$root/data" "$root/config"
+install -d -o ubuntu -g ubuntu -m 0700 "$root/secrets"
 
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 backup="$root/backups/$stamp"

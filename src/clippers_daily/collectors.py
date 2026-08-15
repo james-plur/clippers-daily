@@ -550,6 +550,8 @@ def collect_all(settings) -> tuple[list[Record], list[RunReport]]:
             if channel.get("enabled", company_defaults.get("channel_enabled", True)) is False:
                 continue
             kind = channel.get("type")
+            if company_defaults.get("disable_github_channels", False) and kind in {"github_org", "github_release"}:
+                continue
             if kind in {"rss", "github_release"}:
                 jobs.append((corp["id"], channel["id"], collector.feed, ("company", corp["id"], corp["name"], channel)))
             elif kind == "sitemap":

@@ -20,6 +20,8 @@ from .storage import Store
 
 
 GOOD = {"success", "not_modified", "available", "delegated_to_papers"}
+AUTH_ERRORS = ("permission denied", "authentication failed", "could not read username", "publickey",
+               "repository not found", "access denied")
 
 
 def _source_failures(store: Store, settings: Settings) -> list[dict]:
@@ -193,6 +195,91 @@ def repair_failed_digest(settings: Settings, store: Store) -> dict | None:
     return {"id": repair_id, "date": today, "status": status, "error": error}
 
 
+def _notes_git_state(config: dict) -> dict:
+    repo = Path(config.get("repo_path", ""))
+    branch = config.get("branch", "main")
+    if not (repo / ".git").is_dir():
+        return {"healthy": False, "repo": str(repo), "branch": branch, "error": "笔记仓库不存在或未初始化"}
+    def git(*args: str) -> subprocess.CompletedProcess[str]:
+        env = os.environ.copy()
+        if env.get("CLIPPERS_NOTES_GIT_SSH_COMMAND"):
+            env["GIT_SSH_COMMAND"] = env["CLIPPERS_NOTES_GIT_SSH_COMMAND"]
+        return subprocess.run(["git", "-C", str(repo), *args], text=True, capture_output=True,
+                              timeout=60, env=env)
+    fetch = git("fetch", "origin", branch)
+    if fetch.returncode:
+        error = (fetch.stderr or fetch.stdout).strip()[:2000]
+        return {"healthy": False, "repo": str(repo), "branch": branch, "error": error,
+                "needs_personal_info": any(token in error.lower() for token in AUTH_ERRORS)}
+    status = git("status", "--porcelain")
+    counts = git("rev-list", "--left-right", "--count", f"HEAD...origin/{branch}")
+    if status.returncode or counts.returncode:
+        error = (status.stderr or counts.stderr or status.stdout or counts.stdout).strip()[:2000]
+        return {"healthy": False, "repo": str(repo), "branch": branch, "error": error}
+    ahead, behind = (int(value) for value in counts.stdout.split())
+    dirty = [line[3:] for line in status.stdout.splitlines() if len(line) > 3]
+    return {"healthy": not dirty and not ahead and not behind, "repo": str(repo), "branch": branch,
+            "ahead": ahead, "behind": behind, "dirty": dirty, "error": ""}
+
+
+def repair_notes_git(settings: Settings, store: Store) -> dict | None:
+    config = settings.runtime.get("notes", {})
+    if not config.get("enabled", False):
+        return None
+    state = _notes_git_state(config)
+    if state.get("healthy"):
+        return {"status": "healthy", "state": state}
+    started = datetime.now(timezone.utc)
+    cursor = store.db.execute(
+        "INSERT INTO maintenance_runs(started_at,target_type,target_id,trigger,status,quality_before) VALUES (?,?,?,?,?,?)",
+        (started.isoformat(), "git", "daily-notes", "git_sync_unhealthy", "running",
+         json.dumps(state, ensure_ascii=False)))
+    repair_id = cursor.lastrowid; store.db.commit()
+    diagnosis, action, error = "", "diagnose", state.get("error", "")
+    status = "blocked_personal_info" if state.get("needs_personal_info") else "manual_review"
+    try:
+        if not state.get("needs_personal_info"):
+            prompt = """诊断日报笔记 Git 同步状态。严格返回 JSON {"diagnosis":"中文", "action":"pull_ff|push|commit_inbox|manual_review"}。
+只允许：干净且仅落后时 pull_ff；仅领先时 push；修改文件全部位于 _inbox/日报/ 时 commit_inbox；分叉或其他文件修改必须 manual_review。状态：""" + json.dumps(state, ensure_ascii=False)
+            advice = _extract_json(json_completion([{"role": "user", "content": prompt}], max_tokens=800,
+                                                   config=settings.runtime.get("llm", {})))
+            diagnosis = str(advice.get("diagnosis", "")); suggested = advice.get("action")
+            repo, branch = Path(state["repo"]), state["branch"]
+            allowed = "manual_review"
+            if state.get("behind", 0) and not state.get("ahead", 0) and not state.get("dirty"):
+                allowed = "pull_ff"
+            elif state.get("ahead", 0) and not state.get("behind", 0) and not state.get("dirty"):
+                allowed = "push"
+            elif state.get("dirty") and all(path.startswith("_inbox/日报/") for path in state["dirty"]):
+                allowed = "commit_inbox"
+            action = suggested if suggested == allowed else allowed
+            if action == "pull_ff":
+                subprocess.run(["git", "-C", str(repo), "pull", "--ff-only", "origin", branch], check=True, timeout=120)
+            elif action == "push":
+                subprocess.run(["git", "-C", str(repo), "push", "origin", branch], check=True, timeout=120)
+            elif action == "commit_inbox":
+                subprocess.run(["git", "-C", str(repo), "add", "--", "_inbox/日报"], check=True)
+                subprocess.run(["git", "-C", str(repo), "commit", "-m", "repair: publish pending daily inbox"], check=True)
+                subprocess.run(["git", "-C", str(repo), "push", "origin", branch], check=True, timeout=120)
+            if action != "manual_review":
+                after = _notes_git_state(config)
+                if not after.get("healthy"):
+                    raise RuntimeError(f"Git 修复后仍不健康: {after}")
+                status, error = "deployed", ""
+        after = locals().get("after", state)
+    except Exception as exc:
+        error = str(exc)[:2000]
+        status = "blocked_personal_info" if any(token in error.lower() for token in AUTH_ERRORS) else "failed"
+        after = _notes_git_state(config)
+    with store.db:
+        store.db.execute("""UPDATE maintenance_runs SET finished_at=?,status=?,diagnosis=?,action=?,quality_after=?,error=? WHERE id=?""",
+            (datetime.now(timezone.utc).isoformat(), status, diagnosis, action,
+             json.dumps(after, ensure_ascii=False), error, repair_id))
+        store.log(f"maintenance:{repair_id}", "info" if status == "deployed" else "warning", "maintenance",
+                  f"日报 Git 同步维护：{status}", {"action": action, "error": error})
+    return {"id": repair_id, "status": status, "action": action, "error": error}
+
+
 def maintain(settings: Settings | None = None) -> dict:
     settings = settings or Settings(); store = Store(settings.database)
     if not settings.runtime.get("maintenance", {}).get("enabled", True): return {"enabled": False}
@@ -200,4 +287,6 @@ def maintain(settings: Settings | None = None) -> dict:
     limit = int(settings.runtime.get("maintenance", {}).get("max_repairs_per_run", 2))
     source_results = [repair_source(problem, settings, store) for problem in problems[:limit]]
     digest_result = repair_failed_digest(settings, store)
-    return {"enabled": True, "problems": len(problems), "source_repairs": source_results, "digest_repair": digest_result}
+    git_result = repair_notes_git(settings, store)
+    return {"enabled": True, "problems": len(problems), "source_repairs": source_results,
+            "digest_repair": digest_result, "git_repair": git_result}

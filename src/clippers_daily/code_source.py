@@ -114,7 +114,7 @@ class GitHubClient:
 
     def get(self, path: str, **kwargs) -> httpx.Response:
         response = self.client.get(self.base + path, **kwargs)
-        if response.status_code in {403, 429}:
+        if response.status_code == 429 or (response.status_code == 403 and response.headers.get("x-ratelimit-remaining") == "0"):
             raise RuntimeError("GitHub API 限流，重置时间=" + response.headers.get("x-ratelimit-reset", "unknown"))
         response.raise_for_status()
         return response
@@ -198,7 +198,12 @@ def sync_github(code: dict, store, llm_config: dict, repository: str | None = No
         starred = [r for r in starred if not r.get("private")]
         if repository:
             starred = [r for r in starred if r.get("full_name", "").lower() == repository.lower()]
-        following = [] if repository else [x for x in client.pages("/user/following") if x.get("type") == "Organization"]
+        following_error = ""
+        try:
+            following = [] if repository else [x for x in client.pages("/user/following") if x.get("type") == "Organization"]
+        except httpx.HTTPStatusError as exc:
+            following = []
+            following_error = f"Following 频道不可用：HTTP {exc.response.status_code}，请检查 Followers 只读权限"
         fetched = len(starred) + len(following)
         existing_count = store.db.execute("SELECT count(*) FROM code_repositories WHERE provider='github'").fetchone()[0]
         threshold = int(code.get("importance_threshold", 75)); max_bytes = int(code.get("max_diff_bytes", 200000))
@@ -273,7 +278,8 @@ def sync_github(code: dict, store, llm_config: dict, repository: str | None = No
               (str(user.get("id")), user.get("login"), json.dumps(token.get("scope", "").split(",")),
                expires_at, started.isoformat(), started.isoformat()))
         return records, RunReport(source_id="github-account", channel_id="starred-following", status="success",
-            fetched=fetched, parsed=parsed, selected=len(records), filtered=filtered, started_at=started, finished_at=_now())
+            fetched=fetched, parsed=parsed, selected=len(records), filtered=filtered, error=following_error or None,
+            started_at=started, finished_at=_now())
     except Exception as exc:
         return records, RunReport(source_id="github-account", channel_id="starred-following", status="fetch_error",
             fetched=fetched, parsed=parsed, selected=len(records), filtered=filtered, error=str(exc)[:1000],

@@ -38,7 +38,7 @@ TEMPLATES = Environment(loader=FileSystemLoader(ROOT / "templates"), autoescape=
 SETTINGS = Settings()
 STORE = Store(SETTINGS.database)
 CONFIG = ConfigManager(SETTINGS.config_dir, STORE)
-AUTH = AuthManager(int(SETTINGS.runtime.get("web", {}).get("session_ttl_seconds", 86400)))
+AUTH = AuthManager(int(SETTINGS.runtime.get("web", {}).get("session_ttl_seconds", 86400)), SETTINGS.database)
 JOB_LOCK = threading.Lock()
 OAUTH_STATES: dict[str, tuple[str, float]] = {}
 COOKIE = "clippers_session"

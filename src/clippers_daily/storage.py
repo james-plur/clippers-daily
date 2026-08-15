@@ -106,6 +106,11 @@ CREATE TABLE IF NOT EXISTS maintenance_runs (
   next_retry_at TEXT
 );
 CREATE INDEX IF NOT EXISTS maintenance_target_idx ON maintenance_runs(target_type,target_id,started_at DESC);
+CREATE TABLE IF NOT EXISTS web_sessions (
+  token_hash TEXT PRIMARY KEY, csrf TEXT NOT NULL, last_seen REAL NOT NULL,
+  expires_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS web_sessions_expiry_idx ON web_sessions(expires_at);
 """
 
 

@@ -6,6 +6,18 @@ import stat
 from argon2 import PasswordHasher
 from fastapi.testclient import TestClient
 
+from clippers_daily.auth import AuthManager
+
+
+def test_session_survives_auth_manager_restart(tmp_path, monkeypatch):
+    database = tmp_path / "sessions.db"
+    monkeypatch.setenv("PAPERLAB_ADMIN_PASSWORD_HASH", PasswordHasher().hash("secret"))
+    first = AuthManager(86400, database)
+    session = first.login("admin", "secret", "127.0.0.1")
+    assert session is not None
+    restored = AuthManager(86400, database).get(session.token)
+    assert restored is not None and restored.csrf == session.csrf
+
 
 def test_console_auth_and_config(tmp_path, monkeypatch):
     config = tmp_path / "config"; config.mkdir()

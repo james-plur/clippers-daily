@@ -7,6 +7,7 @@ import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from .history import parse_digest_markdown
 from .models import Record, RunReport
 
 
@@ -200,6 +201,45 @@ class Store:
                     (digest.date, item_id, position, item.category, item.title, item.source, item.reason,
                      item.detail, json.dumps(item.links, ensure_ascii=False), json.dumps(item.record_ids, ensure_ascii=False),
                      json.dumps(item.keywords, ensure_ascii=False), json.dumps(item.tags, ensure_ascii=False)))
+
+    def backfill_digest_editions(self, output_root: Path) -> dict:
+        """Import missing historical report files without touching deliveries."""
+        result: dict = {"imported": [], "skipped": [], "errors": {}}
+        deliveries = self.db.execute(
+            "SELECT digest_date,sent_at FROM deliveries ORDER BY digest_date").fetchall()
+        for delivery in deliveries:
+            digest_date = delivery["digest_date"]
+            if self.db.execute("SELECT 1 FROM digest_editions WHERE digest_date=?", (digest_date,)).fetchone():
+                result["skipped"].append(digest_date)
+                continue
+            markdown_path = output_root / digest_date / "daily.md"
+            html_path = output_root / digest_date / "daily.html"
+            if not markdown_path.is_file() or not html_path.is_file():
+                result["errors"][digest_date] = "日报 Markdown 或 HTML 文件不存在"
+                continue
+            try:
+                markdown = markdown_path.read_text(encoding="utf-8")
+                html = html_path.read_text(encoding="utf-8")
+                digest = parse_digest_markdown(markdown, digest_date)
+                url_ids: dict[str, list[str]] = {}
+                for row in self.db.execute(
+                        "SELECT record_id,canonical_url FROM digest_items WHERE digest_date=?", (digest_date,)):
+                    url_ids.setdefault(row["canonical_url"], []).append(row["record_id"])
+                for position, item in enumerate(digest.items, 1):
+                    record_ids = [identifier for link in item.links for identifier in url_ids.get(link, [])]
+                    if not record_ids:
+                        seed = "|".join(item.links) or f"{digest_date}|{position}|{item.title}"
+                        record_ids = [f"legacy:{hashlib.sha256(seed.encode()).hexdigest()[:20]}"]
+                    item.record_ids = list(dict.fromkeys(record_ids))
+                run_id = f"legacy-import:{digest_date}"
+                self.save_digest(digest, markdown, html, run_id)
+                with self.lock, self.db:
+                    self.db.execute("UPDATE digest_editions SET created_at=? WHERE digest_date=?",
+                                    (delivery["sent_at"], digest_date))
+                result["imported"].append(digest_date)
+            except Exception as exc:
+                result["errors"][digest_date] = str(exc)[:1000]
+        return result
 
     def log(self, run_id: str, level: str, component: str, message: str, detail: dict | None = None) -> None:
         self.db.execute("INSERT INTO job_logs(run_id,happened_at,level,component,message,detail) VALUES (?,?,?,?,?,?)",

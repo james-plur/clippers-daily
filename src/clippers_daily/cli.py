@@ -43,8 +43,10 @@ def main() -> None:
     if args.command == "doctor":
         raise SystemExit(doctor(settings))
     if args.command == "migrate":
-        Store(settings.database).db.close()
-        print(json.dumps({"ok": True, "database": str(settings.database)}, ensure_ascii=False))
+        store = Store(settings.database)
+        history = store.backfill_digest_editions(settings.output_dir)
+        store.db.close()
+        print(json.dumps({"ok": True, "database": str(settings.database), "history": history}, ensure_ascii=False))
         return
     if args.command == "source-test":
         try:

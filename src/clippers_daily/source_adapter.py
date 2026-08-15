@@ -11,7 +11,7 @@ from pathlib import Path
 from .models import Record, RunReport
 
 
-ALLOWED_IMPORTS = {"re", "json", "datetime", "urllib.parse", "httpx", "feedparser", "bs4",
+ALLOWED_IMPORTS = {"re", "json", "datetime", "urllib.parse", "typing", "logging", "httpx", "feedparser", "bs4",
                    "clippers_daily.models", "clippers_daily.collectors"}
 FORBIDDEN_CALLS = {"eval", "exec", "compile", "open", "__import__", "breakpoint", "input"}
 

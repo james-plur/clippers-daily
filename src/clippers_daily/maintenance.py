@@ -27,15 +27,21 @@ AUTH_ERRORS = ("permission denied", "authentication failed", "could not read use
 def _source_failures(store: Store, settings: Settings) -> list[dict]:
     rows = store.db.execute("""SELECT source_id,status,fetched,parsed,selected,error,run_id
       FROM source_runs ORDER BY rowid DESC""").fetchall()
-    grouped: dict[str, list] = {}
+    grouped: dict[str, dict[str, list]] = {}
     for row in rows:
-        grouped.setdefault(row["source_id"], []).append(row)
+        grouped.setdefault(row["source_id"], {}).setdefault(row["run_id"], []).append(row)
     threshold = int(settings.runtime.get("maintenance", {}).get("consecutive_failures", 2))
     empty_threshold = int(settings.runtime.get("maintenance", {}).get("empty_run_threshold", 3))
     result = []
-    for source_id, history in grouped.items():
+    for source_id, runs in grouped.items():
+        history = []
+        for run_id, reports in runs.items():
+            history.append({"run_id": run_id, "status": "success" if any(r["status"] in GOOD for r in reports) else "failed",
+                            "fetched": sum(r["fetched"] for r in reports), "parsed": sum(r["parsed"] for r in reports),
+                            "selected": sum(r["selected"] for r in reports),
+                            "error": "; ".join(r["error"] or "" for r in reports if r["error"])[:2000]})
         recent = history[:max(threshold, empty_threshold)]
-        broken = len(recent) >= threshold and all(r["status"] not in GOOD for r in recent[:threshold])
+        broken = len(recent) >= threshold and all(r["status"] == "failed" for r in recent[:threshold])
         empty = len(recent) >= empty_threshold and all(r["status"] == "success" and not r["parsed"] for r in recent[:empty_threshold])
         if broken or empty:
             last_repair = store.db.execute("SELECT status,next_retry_at FROM maintenance_runs WHERE target_type='source' AND target_id=? ORDER BY id DESC LIMIT 1", (source_id,)).fetchone()
@@ -80,7 +86,7 @@ def _extract_json(content: str) -> dict:
 def _generate_adapter(source: dict, evidence: dict, settings: Settings) -> tuple[str, str]:
     prompt = """你是 Clippers 信息源维护工程师。根据真实错误、页面样本和搜索结果，为且仅为当前信息源编写独立 Python 采集适配器。
 严格返回 JSON {"diagnosis":"中文诊断","code":"完整Python源码"}。源码必须定义 collect(source, runtime)，返回
-{"records":[Record字段字典],"reports":[RunReport字段字典]}。只允许导入 re/json/datetime/urllib.parse/httpx/feedparser/bs4、
+{"records":[Record字段字典],"reports":[RunReport字段字典]}。只允许导入 re/json/datetime/urllib.parse/typing/logging/httpx/feedparser/bs4、
 clippers_daily.models、clippers_daily.collectors；禁止文件、进程、环境变量和动态执行。使用官方 RSS/API/sitemap 优先，保留发布时间、标题、摘要、canonical URL；网络请求必须有 timeout。
 不得伪造内容；来源确实没有近期更新时允许返回 success 和空 records。
 诊断材料：""" + json.dumps(evidence, ensure_ascii=False)

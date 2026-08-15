@@ -245,6 +245,9 @@ def repair_notes_git(settings: Settings, store: Store) -> dict | None:
                                                    config=settings.runtime.get("llm", {})))
             diagnosis = str(advice.get("diagnosis", "")); suggested = advice.get("action")
             repo, branch = Path(state["repo"]), state["branch"]
+            git_env = os.environ.copy()
+            if git_env.get("CLIPPERS_NOTES_GIT_SSH_COMMAND"):
+                git_env["GIT_SSH_COMMAND"] = git_env["CLIPPERS_NOTES_GIT_SSH_COMMAND"]
             allowed = "manual_review"
             if state.get("behind", 0) and not state.get("ahead", 0) and not state.get("dirty"):
                 allowed = "pull_ff"
@@ -254,13 +257,13 @@ def repair_notes_git(settings: Settings, store: Store) -> dict | None:
                 allowed = "commit_inbox"
             action = suggested if suggested == allowed else allowed
             if action == "pull_ff":
-                subprocess.run(["git", "-C", str(repo), "pull", "--ff-only", "origin", branch], check=True, timeout=120)
+                subprocess.run(["git", "-C", str(repo), "pull", "--ff-only", "origin", branch], check=True, timeout=120, env=git_env)
             elif action == "push":
-                subprocess.run(["git", "-C", str(repo), "push", "origin", branch], check=True, timeout=120)
+                subprocess.run(["git", "-C", str(repo), "push", "origin", branch], check=True, timeout=120, env=git_env)
             elif action == "commit_inbox":
                 subprocess.run(["git", "-C", str(repo), "add", "--", "_inbox/日报"], check=True)
                 subprocess.run(["git", "-C", str(repo), "commit", "-m", "repair: publish pending daily inbox"], check=True)
-                subprocess.run(["git", "-C", str(repo), "push", "origin", branch], check=True, timeout=120)
+                subprocess.run(["git", "-C", str(repo), "push", "origin", branch], check=True, timeout=120, env=git_env)
             if action != "manual_review":
                 after = _notes_git_state(config)
                 if not after.get("healthy"):

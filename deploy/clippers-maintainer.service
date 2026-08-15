@@ -13,10 +13,11 @@ Environment=CLIPPERS_CONFIG_DIR=/srv/clippers/config
 Environment=CLIPPERS_DATA_DIR=/srv/clippers/data
 Environment=CLIPPERS_SECRET_DIR=/srv/clippers/secrets
 Environment=CLIPPERS_ADAPTER_DIR=/srv/clippers/data/source_adapters
+LoadCredential=notes_ssh:/home/ubuntu/.ssh/clippers_notes_ed25519
+Environment="CLIPPERS_NOTES_GIT_SSH_COMMAND=ssh -i /run/credentials/clippers-maintainer.service/notes_ssh -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 ExecStart=/srv/clippers/current/.venv/bin/clippers maintain
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=true
 ReadWritePaths=/srv/clippers/data /srv/clippers/config /srv/clippers/secrets /srv/clippers/maintenance
-

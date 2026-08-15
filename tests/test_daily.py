@@ -178,8 +178,13 @@ def test_storage_migration_history_and_feedback(tmp_path):
     digest = Digest(date="2026-08-14",overview="概览",items=[item])
     store.save_digest(digest,"# markdown","<html>","run")
     entry_id = store.get_digest("2026-08-14")["items"][0]["item_id"]
-    store.rate("item","2026-08-14",entry_id,5,"很好")
+    store.set_like("2026-08-14",entry_id,True)
+    store.set_like("2026-08-14",entry_id,True)
+    assert store.get_digest("2026-08-14")["items"][0]["liked"] == 1
     assert store.db.execute("SELECT weight FROM preference_weights WHERE dimension='source' AND value='DeepSeek'").fetchone()[0] == .5
+    store.set_like("2026-08-14",entry_id,False)
+    assert store.db.execute("SELECT weight FROM preference_weights WHERE dimension='source' AND value='DeepSeek'").fetchone()[0] == 0
+    store.set_like("2026-08-14",entry_id,True)
     store.decay_preference_weights(datetime.now(timezone.utc) + timedelta(days=1))
     assert store.db.execute("SELECT weight FROM preference_weights WHERE dimension='source' AND value='DeepSeek'").fetchone()[0] == pytest.approx(.5 * .995)
     assert store.was_delivered("2026-08-01")

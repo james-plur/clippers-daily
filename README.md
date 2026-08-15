@@ -12,7 +12,7 @@ Clippers Daily 是独立的 AI 基础设施日报服务。它负责采集、选�
 - 合格中文媒体候选存在时至少选择 1 条，机器之心在中文媒体中为最高优先级。
 - 未入选内容在 7 天窗口内继续参与选稿，历史投递按 ID、规范 URL 和标题去重。
 - 同一日期默认禁止重复发送，只有 `--force-send` 或 API 的 `force=true` 能显式重发。
-- 条目评分以 3 分为中性，变化量为 `(评分-3) × 0.25`，权重限制在 `[-5,5]`，每日衰减 `0.995`。
+- 日报条目支持点赞；点赞会提升对应来源、类别、关键词和标签的推荐权重，取消点赞会撤销增益。权重限制在 `[-5,5]`，每日衰减 `0.995`。
 
 ## 本地运行
 
@@ -33,7 +33,7 @@ set -a; source .env; set +a
 
 ## 控制台
 
-控制台提供历史日报与评分、来源启停和预检、结构化配置与高级 YAML、版本回滚、多个 SMTP
+控制台提供历史日报与点赞反馈、来源启停和预检、结构化配置与高级 YAML、版本回滚、多个 SMTP
 发件人和收件人、主备模型、Git 状态、任务日志及 PaperLab 状态。完整 PaperLab 界面由认证网关
 代理到 `/paperlab/`。
 
@@ -45,8 +45,7 @@ set -a; source .env; set +a
 配置位于 `config/*.yaml`。常用接口：
 
 - `GET /api/digests`、`GET /api/digests/{date}`
-- `PUT /api/digests/{date}/rating`
-- `PUT /api/digests/{date}/items/{item_id}/rating`
+- `PUT /api/digests/{date}/items/{item_id}/like`
 - `GET/PUT /api/config/{section}`、`POST /api/config/{section}/rollback`
 - `GET/PUT /api/sources/{source_id}`、`POST /api/jobs/source-test`
 - `POST /api/jobs/daily-preview`、`POST /api/jobs/daily-send`

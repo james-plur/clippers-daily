@@ -246,34 +246,40 @@ class Store:
                         (run_id, datetime.now(timezone.utc).isoformat(), level, component, message,
                          json.dumps(detail or {}, ensure_ascii=False)))
 
-    def rate(self, subject_type: str, digest_date: str, subject_id: str,
-             rating: int, review: str = "") -> None:
-        if subject_type not in {"digest", "item"} or not 1 <= rating <= 5:
-            raise ValueError("评分必须是 1 到 5")
+    def set_like(self, digest_date: str, item_id: str, liked: bool) -> None:
+        """Like or unlike an entry and adjust its recommendation dimensions once."""
         now = datetime.now(timezone.utc).isoformat()
-        previous = self.db.execute("SELECT rating FROM ratings WHERE subject_type=? AND digest_date=? AND subject_id=?",
-                                   (subject_type, digest_date, subject_id)).fetchone()
+        previous = self.db.execute(
+            "SELECT rating FROM ratings WHERE subject_type='item' AND digest_date=? AND subject_id=?",
+            (digest_date, item_id),
+        ).fetchone()
         with self.lock, self.db:
-            self.db.execute("INSERT OR REPLACE INTO ratings VALUES (?,?,?,?,?,?)",
-                            (subject_type, digest_date, subject_id, rating, review, now))
-            if subject_type == "item":
-                entry = self.db.execute("SELECT category,source,keywords,tags FROM digest_entries WHERE digest_date=? AND item_id=?",
-                                        (digest_date, subject_id)).fetchone()
-                if not entry:
-                    raise ValueError("日报条目不存在")
-                old_delta = ((previous["rating"] - 3) * .25) if previous else 0.0
-                new_delta = (rating - 3) * .25
-                delta = new_delta - old_delta
-                dimensions = [("category", entry["category"]), ("source", entry["source"])]
-                dimensions += [("keyword", value) for value in json.loads(entry["keywords"] or "[]")]
-                dimensions += [("tag", value) for value in json.loads(entry["tags"] or "[]")]
-                for dimension, value in dimensions:
-                    if not value:
-                        continue
-                    self.db.execute("""INSERT INTO preference_weights VALUES (?,?,?,?)
-                      ON CONFLICT(dimension,value) DO UPDATE SET
-                      weight=max(-5,min(5,preference_weights.weight+excluded.weight)),updated_at=excluded.updated_at""",
-                      (dimension, value, delta, now))
+            entry = self.db.execute(
+                "SELECT category,source,keywords,tags FROM digest_entries WHERE digest_date=? AND item_id=?",
+                (digest_date, item_id),
+            ).fetchone()
+            if not entry:
+                raise ValueError("日报条目不存在")
+            old_delta = ((previous["rating"] - 3) * .25) if previous else 0.0
+            new_delta = .5 if liked else 0.0
+            delta = new_delta - old_delta
+            if liked:
+                # Rating 5 is retained as the on-disk representation for compatibility.
+                self.db.execute("INSERT OR REPLACE INTO ratings VALUES (?,?,?,?,?,?)",
+                                ("item", digest_date, item_id, 5, "", now))
+            else:
+                self.db.execute("DELETE FROM ratings WHERE subject_type='item' AND digest_date=? AND subject_id=?",
+                                (digest_date, item_id))
+            dimensions = [("category", entry["category"]), ("source", entry["source"])]
+            dimensions += [("keyword", value) for value in json.loads(entry["keywords"] or "[]")]
+            dimensions += [("tag", value) for value in json.loads(entry["tags"] or "[]")]
+            for dimension, value in dimensions:
+                if not value or not delta:
+                    continue
+                self.db.execute("""INSERT INTO preference_weights VALUES (?,?,?,?)
+                  ON CONFLICT(dimension,value) DO UPDATE SET
+                  weight=max(-5,min(5,preference_weights.weight+excluded.weight)),updated_at=excluded.updated_at""",
+                  (dimension, value, delta, now))
 
     def preference_score(self, record: Record) -> float:
         dimensions = [("category", record.category), ("source", record.source_name)]
@@ -304,7 +310,7 @@ class Store:
 
     def list_digests(self, limit: int = 30) -> list[dict]:
         rows = self.db.execute("""SELECT d.digest_date,d.overview,d.created_at,
-          (SELECT rating FROM ratings r WHERE r.subject_type='digest' AND r.digest_date=d.digest_date) rating,
+          (SELECT count(*) FROM ratings r WHERE r.subject_type='item' AND r.digest_date=d.digest_date AND r.rating>=4) liked_count,
           (SELECT count(*) FROM digest_entries e WHERE e.digest_date=d.digest_date) item_count
           FROM digest_editions d ORDER BY d.digest_date DESC LIMIT ?""", (limit,)).fetchall()
         return [dict(row) for row in rows]
@@ -314,16 +320,14 @@ class Store:
         if not edition:
             return None
         entries = self.db.execute("""SELECT e.*,
-          (SELECT rating FROM ratings r WHERE r.subject_type='item' AND r.digest_date=e.digest_date AND r.subject_id=e.item_id) rating,
-          (SELECT review FROM ratings r WHERE r.subject_type='item' AND r.digest_date=e.digest_date AND r.subject_id=e.item_id) review
+          EXISTS(SELECT 1 FROM ratings r WHERE r.subject_type='item' AND r.digest_date=e.digest_date AND r.subject_id=e.item_id AND r.rating>=4) liked
           FROM digest_entries e WHERE e.digest_date=? ORDER BY position""", (digest_date,)).fetchall()
         result = dict(edition)
         result["items"] = [dict(row) for row in entries]
         for item in result["items"]:
             for key in ("links", "record_ids", "keywords", "tags"):
                 item[key] = json.loads(item[key] or "[]")
-        rating = self.db.execute("SELECT rating,review FROM ratings WHERE subject_type='digest' AND digest_date=?", (digest_date,)).fetchone()
-        result["rating"] = dict(rating) if rating else None
+        result["liked_count"] = sum(bool(item["liked"]) for item in result["items"])
         return result
 
     def list_jobs(self, limit: int = 50) -> list[dict]:

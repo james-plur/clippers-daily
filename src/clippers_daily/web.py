@@ -50,9 +50,8 @@ class LoginBody(BaseModel):
     password: str
 
 
-class RatingBody(BaseModel):
-    rating: int = Field(ge=1, le=5)
-    review: str = ""
+class LikeBody(BaseModel):
+    liked: bool
 
 
 class ConfigBody(BaseModel):
@@ -180,17 +179,14 @@ def create_app() -> FastAPI:
             raise HTTPException(404, "日报不存在")
         return value
 
-    @app.put("/api/digests/{digest_date}/rating")
-    def rate_digest(digest_date: str, body: RatingBody, session: Session = Depends(csrf_session)) -> dict:
-        STORE.rate("digest", digest_date, "digest", body.rating, body.review)
-        audit("rating.digest", digest_date, {"rating": body.rating})
-        return {"ok": True}
-
-    @app.put("/api/digests/{digest_date}/items/{item_id}/rating")
-    def rate_item(digest_date: str, item_id: str, body: RatingBody, session: Session = Depends(csrf_session)) -> dict:
-        STORE.rate("item", digest_date, item_id, body.rating, body.review)
-        audit("rating.item", f"{digest_date}/{item_id}", {"rating": body.rating})
-        return {"ok": True}
+    @app.put("/api/digests/{digest_date}/items/{item_id}/like")
+    def like_item(digest_date: str, item_id: str, body: LikeBody, session: Session = Depends(csrf_session)) -> dict:
+        try:
+            STORE.set_like(digest_date, item_id, body.liked)
+        except ValueError as exc:
+            raise HTTPException(404, str(exc)) from exc
+        audit("like.item", f"{digest_date}/{item_id}", {"liked": body.liked})
+        return {"ok": True, "liked": body.liked}
 
     @app.get("/api/sources")
     def sources(session: Session = Depends(current_session)) -> list[dict]:

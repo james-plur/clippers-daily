@@ -1,0 +1,15 @@
+.like-button {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--muted);
+  border-radius: 18px;
+  padding: 7px 12px;
+  white-space: nowrap;
+}
+.like-button:hover { border-color: var(--green); color: var(--green); }
+.like-button.liked {
+  border-color: var(--green);
+  background: var(--mint);
+  color: var(--green);
+  font-weight: 650;
+}

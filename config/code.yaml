@@ -15,7 +15,7 @@ github:
   client_id_file: /srv/clippers/secrets/github_app_client_id
   client_secret_file: /srv/clippers/secrets/github_app_client_secret
   token_file: /srv/clippers/secrets/github_user_token.json
-  callback_url: https://paperlab.cloud/api/code/github/callback
+  callback_url: https://62.234.193.237/api/code/github/callback
 gitlab:
   enabled: false
   api_url: https://gitlab.com/api/v4

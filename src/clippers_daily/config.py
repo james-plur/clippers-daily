@@ -34,6 +34,7 @@ class Settings:
         self.minimum_zh_media_items = int(self.runtime.get("minimum_zh_media_items", 1))
         self.minimum_media_items = int(self.runtime.get("minimum_media_items", 1))
         self.minimum_paper_items = int(self.runtime.get("minimum_paper_items", 1))
+        self.minimum_paperlab_items = int(self.runtime.get("minimum_paperlab_items", 1))
 
     def source(self, source_id: str) -> dict | None:
         for section, key in ((self.corporations, "corporations"), (self.media, "sources"), (self.papers, "sources")):

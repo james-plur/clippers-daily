@@ -1,6 +1,6 @@
 version: 1
 timezone: Asia/Shanghai
-target_items: 7
+target_items: 10
 lookback_hours: 36
 history_days: 30
 fallback_days: 7
@@ -8,6 +8,7 @@ minimum_deepseek_items: 1
 minimum_zh_media_items: 1
 minimum_media_items: 1
 minimum_paper_items: 1
+minimum_paperlab_items: 1
 request_timeout_seconds: 30
 collection_workers: 8
 output_dir: data/reports

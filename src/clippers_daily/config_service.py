@@ -28,10 +28,11 @@ def validate_section(section: str, value: dict) -> None:
         target = int(value.get("target_items", 0))
         if not 1 <= target <= 30:
             raise ValueError("target_items 必须在 1 到 30 之间")
-        if int(value.get("minimum_deepseek_items", 0)) + int(value.get("minimum_zh_media_items", 0)) > target:
+        if (int(value.get("minimum_deepseek_items", 0)) + int(value.get("minimum_zh_media_items", 0))
+                + int(value.get("minimum_paperlab_items", 0))) > target:
             raise ValueError("硬配额之和不能超过日报条数")
         for key in ("lookback_hours", "fallback_days", "minimum_deepseek_items", "minimum_zh_media_items",
-                    "minimum_media_items", "minimum_paper_items"):
+                    "minimum_media_items", "minimum_paper_items", "minimum_paperlab_items"):
             if int(value.get(key, 0)) < 0:
                 raise ValueError(f"{key} 不能为负数")
         email = value.get("email", {})

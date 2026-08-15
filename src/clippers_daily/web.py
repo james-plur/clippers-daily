@@ -249,7 +249,8 @@ def create_app() -> FastAPI:
         runtime = CONFIG.read("runtime")
         if area == "schedule":
             for key in ("target_items", "lookback_hours", "fallback_days", "minimum_deepseek_items",
-                        "minimum_zh_media_items", "minimum_media_items", "minimum_paper_items"):
+                        "minimum_zh_media_items", "minimum_media_items", "minimum_paper_items",
+                        "minimum_paperlab_items"):
                 if key in body:
                     runtime[key] = body[key]
         else:

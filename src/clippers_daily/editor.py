@@ -65,10 +65,13 @@ def build_digest(records: list[Record], digest_date: date, target: int, policy: 
     requirements = []
     deepseek_quota = int(policy.get("minimum_deepseek_items", policy.get("require_deepseek", 0)))
     zh_media_quota = int(policy.get("minimum_zh_media_items", policy.get("require_zh_media", 0)))
+    paperlab_quota = int(policy.get("minimum_paperlab_items", 0))
     if deepseek_quota:
         requirements.append(f"至少 {deepseek_quota} 个条目必须引用 source_id=deepseek 的记录")
     if zh_media_quota:
         requirements.append(f"至少 {zh_media_quota} 个条目必须引用 language=zh-CN 且 category=media 的记录")
+    if paperlab_quota:
+        requirements.append(f"至少 {paperlab_quota} 个条目必须引用 source_id=paperlab 的记录")
     if policy.get("reserved_record_ids"):
         required_aliases = [reverse_aliases[item] for item in policy["reserved_record_ids"] if item in reverse_aliases]
         requirements.append("必须引用这些确定性保底候选：" + ", ".join(required_aliases))
@@ -135,15 +138,20 @@ def _validate_digest(digest: Digest, records: list[Record], target: int, policy:
     selected_ids = {record_id for item in digest.items for record_id in item.record_ids}
     deepseek_quota = int(policy.get("minimum_deepseek_items", policy.get("require_deepseek", 0)))
     zh_media_quota = int(policy.get("minimum_zh_media_items", policy.get("require_zh_media", 0)))
+    paperlab_quota = int(policy.get("minimum_paperlab_items", 0))
     selected_deepseek_items = sum(any(allowed[record_id].source_id == "deepseek" for record_id in item.record_ids)
                                  for item in digest.items)
     selected_zh_items = sum(any(allowed[record_id].category == "media" and
                                 allowed[record_id].language.lower().startswith("zh") for record_id in item.record_ids)
                             for item in digest.items)
+    selected_paperlab_items = sum(any(allowed[record_id].source_id == "paperlab" for record_id in item.record_ids)
+                                  for item in digest.items)
     if selected_deepseek_items < deepseek_quota:
         raise ValueError(f"DeepSeek 条目不足：需要 {deepseek_quota}，实际 {selected_deepseek_items}")
     if selected_zh_items < zh_media_quota:
         raise ValueError(f"中文媒体条目不足：需要 {zh_media_quota}，实际 {selected_zh_items}")
+    if selected_paperlab_items < paperlab_quota:
+        raise ValueError(f"PaperLab 条目不足：需要 {paperlab_quota}，实际 {selected_paperlab_items}")
     missing_reserved = set(policy.get("reserved_record_ids", [])) - selected_ids
     if missing_reserved:
         raise ValueError(f"未选择确定性保底候选: {sorted(missing_reserved)}")

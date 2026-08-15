@@ -129,6 +129,13 @@ def test_hard_quotas_are_validated():
     with pytest.raises(ValueError, match="DeepSeek"):
         _validate_digest(Digest(date=digest.date, overview="x", items=[item(chinese), item(paper)]), [deepseek, chinese, paper], 2,
                          {"require_deepseek":True,"require_zh_media":True})
+    huggingface = record("hf-paper", source="Hugging Face Daily Papers", category="paper")
+    huggingface.source_id = "huggingface-daily-papers"
+    with pytest.raises(ValueError, match="PaperLab"):
+        _validate_digest(
+            Digest(date=digest.date, overview="x", items=[item(deepseek), item(chinese), item(huggingface)]),
+            [deepseek, chinese, paper, huggingface], 3,
+            {"minimum_deepseek_items": 1, "minimum_zh_media_items": 1, "minimum_paperlab_items": 1})
 
 
 def test_editor_maps_unambiguous_candidate_aliases(monkeypatch):
@@ -146,16 +153,18 @@ def test_editor_maps_unambiguous_candidate_aliases(monkeypatch):
 
 def test_candidate_pool_places_deepseek_and_chinese_first(tmp_path):
     class Settings:
-        fallback_days=7; lookback_hours=36; minimum_deepseek_items=1; minimum_zh_media_items=1
+        fallback_days=7; lookback_hours=36; minimum_deepseek_items=1; minimum_zh_media_items=1; minimum_paperlab_items=1
         papers={"sources":[{"selection":{"topic_filter":{"keywords":[]}}}]}
     store = Store(tmp_path / "db.sqlite")
     deepseek = record("deep", source="DeepSeek"); deepseek.source_id="deepseek"
     chinese = record("zh", source="机器之心", category="media", language="zh-CN"); chinese.source_id="jiqizhixin"
     other = record("other")
-    candidates, policy = _candidate_pool(Settings(), store, [other, chinese, deepseek], datetime.now(timezone.utc))
-    assert candidates[:2] == [deepseek, chinese]
+    paperlab = record("paperlab", source="PaperLab", category="paper"); paperlab.source_id="paperlab"
+    candidates, policy = _candidate_pool(Settings(), store, [other, chinese, deepseek, paperlab], datetime.now(timezone.utc))
+    assert candidates[:3] == [deepseek, chinese, paperlab]
     assert policy == {"minimum_deepseek_items": 1, "minimum_zh_media_items": 1,
-                      "reserved_record_ids": [deepseek.id, chinese.id]}
+                      "minimum_paperlab_items": 1,
+                      "reserved_record_ids": [deepseek.id, chinese.id, paperlab.id]}
 
 
 def test_storage_migration_history_and_feedback(tmp_path):

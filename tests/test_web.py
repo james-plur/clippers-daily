@@ -34,7 +34,7 @@ def test_console_auth_and_config(tmp_path, monkeypatch):
         revision = saved.json()["revision"]
         assert client.get("/api/config/runtime").json()["value"]["target_items"] == 8
         assert client.post(f"/api/config/runtime/rollback?revision={revision}", headers={"X-CSRF-Token":csrf}).status_code == 200
-        assert client.get("/api/config/runtime").json()["value"]["target_items"] == 7
+        assert client.get("/api/config/runtime").json()["value"]["target_items"] == 10
         assert client.put("/api/config/runtime", headers={"X-CSRF-Token":csrf}, json={"raw_yaml":"version: 1\ntarget_items: 0\n","confirm":True}).status_code == 400
         secret_yaml = "version: 1\ntarget_items: 7\nllm:\n  providers:\n    - id: bad\n      base_url: https://example.invalid\n      model: x\n      api_key: exposed\n"
         assert client.put("/api/config/runtime", headers={"X-CSRF-Token":csrf},

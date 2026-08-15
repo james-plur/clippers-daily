@@ -48,6 +48,7 @@ def _candidate_pool(settings: Settings, store: Store, records: list, now: dateti
                 float(record.metadata.get("relevance_score", 0) or 0),
                 record.metadata.get("upvotes", 0), (record.published_at or fallback_cutoff).timestamp())
     papers.sort(key=paper_score, reverse=True)
+    paperlab = [r for r in papers if r.source_id == "paperlab"]
     ranked = _rank(store, company_media)
     primary_cutoff = now - timedelta(hours=settings.lookback_hours)
     primary = [r for r in ranked if r.published_at >= primary_cutoff]
@@ -59,13 +60,16 @@ def _candidate_pool(settings: Settings, store: Store, records: list, now: dateti
     media = [r for r in eligible if r.category == "media"]
     company = [r for r in eligible if r.category == "company"]
     ordered = []
-    for group in (deepseek[:10], zh_media[:20], media[:30], company[:60], papers[:40]):
+    paperlab_quota = min(len(paperlab), settings.minimum_paperlab_items)
+    for group in (deepseek[:10], zh_media[:20], paperlab[:paperlab_quota], media[:30], company[:60], papers[:40]):
         ordered.extend(r for r in group if r not in ordered)
     deepseek_quota = min(len(deepseek), settings.minimum_deepseek_items)
     zh_media_quota = min(len(zh_media), settings.minimum_zh_media_items)
     policy = {"minimum_deepseek_items": deepseek_quota,
               "minimum_zh_media_items": zh_media_quota,
-              "reserved_record_ids": [r.id for r in deepseek[:deepseek_quota] + zh_media[:zh_media_quota]]}
+              "minimum_paperlab_items": paperlab_quota,
+              "reserved_record_ids": [r.id for r in deepseek[:deepseek_quota] + zh_media[:zh_media_quota]
+                                      + paperlab[:paperlab_quota]]}
     return ordered, policy
 
 
@@ -92,12 +96,15 @@ def run_daily(settings: Settings, digest_date: date, send: bool = True, force_se
         if not candidates:
             raise ValueError("去重和时间过滤后没有可推荐候选")
         for report in reports:
-            report.eligible = sum(1 for record in candidates if record.source_id == report.source_id and record.channel_id == report.channel_id)
+            report.eligible = sum(1 for record in candidates if record.source_id == report.source_id and
+                                  (record.channel_id == report.channel_id or report.channel_id == "conference-catalog"))
         digest = build_digest(candidates, digest_date, settings.target_items, policy,
                               settings.runtime.get("llm", {}))
         selected_ids = {record_id for item in digest.items for record_id in item.record_ids}
         for report in reports:
-            report.selected_for_digest = sum(1 for record in records if record.id in selected_ids and record.source_id == report.source_id and record.channel_id == report.channel_id)
+            report.selected_for_digest = sum(1 for record in records if record.id in selected_ids and
+                                              record.source_id == report.source_id and
+                                              (record.channel_id == report.channel_id or report.channel_id == "conference-catalog"))
         store.save_reports(run_id, reports)
         for record in records:
             if record.id in selected_ids:

@@ -12,6 +12,18 @@ from .storage import Store
 PRIORITY = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}
 
 
+def _publish_notes_best_effort(store: Store, run_id: str, markdown: str, digest, selected: list,
+                               notes_config: dict) -> None:
+    try:
+        publish_daily_inbox(markdown, digest, selected, notes_config)
+        store.log(run_id, "info", "git", "日报笔记同步完成", {"digest_date": digest.date})
+    except Exception as exc:
+        # Notes are an optional output adapter. A Git outage must not suppress
+        # the primary email delivery.
+        store.log(run_id, "warning", "git", "日报笔记同步失败，继续发送邮件", {
+            "digest_date": digest.date, "error": str(exc)[:2000]})
+
+
 def _rank(store: Store, records: list) -> list:
     return sorted(records, key=lambda r: (
         0 if r.source_id == "deepseek" else 1,
@@ -103,7 +115,7 @@ def run_daily(settings: Settings, digest_date: date, send: bool = True, force_se
             subject = settings.runtime.get("email", {}).get("subject_template", "AI基础设施日报 - {date}").format(date=digest.date)
             notes_config = settings.runtime.get("notes", {})
             if notes_config.get("enabled", False):
-                publish_daily_inbox(markdown, digest, selected, notes_config)
+                _publish_notes_best_effort(store, run_id, markdown, digest, selected, notes_config)
             message_id = send_html(subject, html_path, settings.runtime.get("email", {}))
             store.mark_delivered(digest.date, message_id, selected)
         store.finish_run(run_id, "success", str(markdown_path), str(html_path), message_id)

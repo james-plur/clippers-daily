@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import time
 from pathlib import Path
 
 from .models import Digest, Record
@@ -12,8 +13,24 @@ def _git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProc
     env = os.environ.copy()
     if env.get("CLIPPERS_NOTES_GIT_SSH_COMMAND"):
         env["GIT_SSH_COMMAND"] = env["CLIPPERS_NOTES_GIT_SSH_COMMAND"]
-    return subprocess.run(["git", "-C", str(repo), *args], env=env, check=check,
-                          text=True, capture_output=True)
+    result = subprocess.run(["git", "-C", str(repo), *args], env=env, check=False,
+                            text=True, capture_output=True)
+    if check and result.returncode:
+        detail = (result.stderr or result.stdout or "无输出").strip()[:1000]
+        raise RuntimeError(f"git {' '.join(args)} 失败（exit {result.returncode}）: {detail}")
+    return result
+
+
+def _git_with_retry(repo: Path, *args: str, attempts: int = 3, delay_seconds: float = 2) -> None:
+    last: subprocess.CompletedProcess[str] | None = None
+    for attempt in range(1, max(1, attempts) + 1):
+        last = _git(repo, *args, check=False)
+        if last.returncode == 0:
+            return
+        if attempt < attempts:
+            time.sleep(delay_seconds * attempt)
+    detail = ((last.stderr or last.stdout) if last else "无输出").strip()[:1000]
+    raise RuntimeError(f"git {' '.join(args)} 重试 {attempts} 次后失败: {detail}")
 
 
 def publish_daily_inbox(markdown: str, digest: Digest, records: list[Record], config: dict) -> Path:
@@ -22,7 +39,10 @@ def publish_daily_inbox(markdown: str, digest: Digest, records: list[Record], co
     branch = config.get("branch", "main")
     if not (repo / ".git").is_dir():
         raise RuntimeError(f"笔记 Git 仓库尚未初始化: {repo}")
-    _git(repo, "pull", "--ff-only", "origin", branch)
+    attempts = int(config.get("git_push_attempts", 3))
+    retry_seconds = float(config.get("git_retry_seconds", 2))
+    _git_with_retry(repo, "pull", "--ff-only", "origin", branch,
+                    attempts=attempts, delay_seconds=retry_seconds)
     inbox = repo / config.get("inbox_dir", "_inbox/日报")
     inbox.mkdir(parents=True, exist_ok=True)
     markdown_path = inbox / f"{digest.date}.md"
@@ -37,5 +57,8 @@ def publish_daily_inbox(markdown: str, digest: Digest, records: list[Record], co
     _git(repo, "add", "--", *paths)
     if _git(repo, "diff", "--cached", "--quiet", check=False).returncode:
         _git(repo, "commit", "-m", f"inbox: daily {digest.date}")
-        _git(repo, "push", "origin", branch)
+    # Push even when the files did not change: a previous transient failure may
+    # have left an already-created daily commit ahead of origin.
+    _git_with_retry(repo, "push", "origin", branch,
+                    attempts=attempts, delay_seconds=retry_seconds)
     return json_path

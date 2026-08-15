@@ -27,6 +27,7 @@ test = ["pytest>=8.3,<9", "respx>=0.22,<1"]
 [project.scripts]
 clippers = "clippers_daily.cli:main"
 clippers-web = "clippers_daily.web:main"
+clippers-llm-gateway = "clippers_daily.llm_gateway:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/clippers_daily"]

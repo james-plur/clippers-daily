@@ -1,6 +1,7 @@
 [Unit]
 Description=Clippers AI infrastructure daily digest
-After=network-online.target paperlab.service mihomo.service
+After=network-online.target clippers-llm-gateway.service paperlab.service mihomo.service
+Wants=clippers-llm-gateway.service
 Wants=network-online.target mihomo.service
 
 [Service]

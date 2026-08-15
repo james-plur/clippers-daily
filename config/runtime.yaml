@@ -29,7 +29,15 @@ email:
       password_file: /srv/clippers/secrets/qq_smtp_password
   recipients: []
 llm:
+  default_provider: siliconflow
+  gateway:
+    enabled: true
+    host: 127.0.0.1
+    port: 8767
+    base_url: http://127.0.0.1:8767/v1
+    model: clippers-default
   providers:
+    - {id: siliconflow, enabled: true, base_url: "https://api.siliconflow.cn/v1", model: "Pro/deepseek-ai/DeepSeek-V4", api_key_file: "/srv/clippers/secrets/siliconflow_api_key"}
     - {id: zhipu, enabled: true, base_url: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4.7-flash", api_key_env: ZHIPU_API_KEY}
     - {id: deepseek, enabled: true, base_url: "https://api.deepseek.com", model: "deepseek-v4-flash", api_key_env: DEEPSEEK_API_KEY}
 git:

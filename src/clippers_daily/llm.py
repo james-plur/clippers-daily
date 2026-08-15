@@ -18,6 +18,15 @@ def _provider_key(item: dict) -> str | None:
 
 
 def provider_settings(config: dict | None = None) -> list[dict]:
+    gateway = (config or {}).get("gateway", {})
+    if gateway.get("enabled", False):
+        return [{
+            "id": "clippers-gateway",
+            "api_key": gateway.get("client_api_key", "clippers-local"),
+            "base_url": gateway.get("base_url", "http://127.0.0.1:8767/v1"),
+            "model": gateway.get("model", "clippers-default"),
+            "disable_thinking": gateway.get("disable_thinking", True),
+        }]
     configured = (config or {}).get("providers", [])
     if configured:
         return [item | {"api_key": _provider_key(item)} for item in configured if item.get("enabled", True)]
@@ -32,7 +41,7 @@ def provider_settings(config: dict | None = None) -> list[dict]:
 
 
 def json_completion(messages: list[dict], max_tokens: int = 8192, config: dict | None = None) -> str:
-    """Use Zhipu first and transparently fall back to DeepSeek on API failure."""
+    """Call the configured model route, normally the local Clippers gateway."""
     providers = provider_settings(config)
     errors = []
     for provider in providers:

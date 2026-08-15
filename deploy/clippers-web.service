@@ -1,6 +1,6 @@
 [Unit]
 Description=Clippers administration console and PaperLab gateway
-After=network-online.target paperlab.service
+After=network-online.target clippers-llm-gateway.service paperlab.service
 Wants=network-online.target
 
 [Service]

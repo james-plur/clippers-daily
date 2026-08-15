@@ -1,0 +1,24 @@
+[Unit]
+Description=Clippers unified OpenAI-compatible LLM gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/srv/clippers/current
+EnvironmentFile=-/srv/clippers/.env
+Environment=CLIPPERS_CONFIG_DIR=/srv/clippers/config
+Environment=CLIPPERS_SECRET_DIR=/srv/clippers/secrets
+ExecStart=/srv/clippers/current/.venv/bin/clippers-llm-gateway
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadOnlyPaths=/srv/clippers/config /srv/clippers/secrets
+
+[Install]
+WantedBy=multi-user.target

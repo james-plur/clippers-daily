@@ -37,6 +37,10 @@ set -a; source .env; set +a
 发件人和收件人、主备模型、Git 状态、任务日志及 PaperLab 状态。完整 PaperLab 界面由认证网关
 代理到 `/paperlab/`。
 
+大模型统一由监听 `127.0.0.1:8767` 的 OpenAI 兼容网关提供。Clippers 和 PaperLab 均使用
+`http://127.0.0.1:8767/v1` 与模型别名 `clippers-default`；网关默认路由到 SiliconFlow 的
+`Pro/deepseek-ai/DeepSeek-V4`，上游 API Key 只需在 Clippers 控制台配置一次。
+
 认证复用 `PAPERLAB_ADMIN_USERNAME` 和 `PAPERLAB_ADMIN_PASSWORD_HASH`。密码哈希使用 Argon2；
 模型和 SMTP 密钥只写入 `/srv/clippers/secrets/` 的 0600 文件，API 不回显密钥。
 

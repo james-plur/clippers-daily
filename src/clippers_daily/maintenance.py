@@ -228,6 +228,16 @@ def repair_notes_git(settings: Settings, store: Store) -> dict | None:
         return None
     state = _notes_git_state(config)
     if state.get("healthy"):
+        last = store.db.execute("SELECT status FROM maintenance_runs WHERE target_type='git' AND target_id='daily-notes' ORDER BY id DESC LIMIT 1").fetchone()
+        if last and last["status"] not in {"healthy", "resolved", "deployed"}:
+            now = datetime.now(timezone.utc).isoformat()
+            with store.db:
+                cursor = store.db.execute("""INSERT INTO maintenance_runs
+                    (started_at,finished_at,target_type,target_id,trigger,status,action,quality_after)
+                    VALUES (?,?,?,?,?,?,?,?)""", (now, now, "git", "daily-notes", "health_recovered",
+                    "resolved", "health_check", json.dumps(state, ensure_ascii=False)))
+                store.log(f"maintenance:{cursor.lastrowid}", "info", "maintenance", "日报 Git 同步已恢复", state)
+            return {"id": cursor.lastrowid, "status": "resolved", "state": state}
         return {"status": "healthy", "state": state}
     started = datetime.now(timezone.utc)
     cursor = store.db.execute(

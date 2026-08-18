@@ -1,7 +1,20 @@
-# Clippers Daily
+# Clippers
 
-Clippers Daily 是独立的 AI 基础设施日报服务。它负责采集、选稿、LLM 编辑、渲染、邮件投递、
-历史反馈和管理控制台；Obsidian 插件、Safari、日历、项目日志和本地附件自动化不属于本仓库。
+Clippers 采用“服务器端 + 本地 Obsidian 插件”的边界：
+
+```text
+Clippers
+├── 服务器端（本仓库根目录）
+│   ├── 信息与代码动态采集、选稿、日报和邮件
+│   ├── Web 管理控制台
+│   └── PaperLab 云端采集与数据管理入口
+└── plugins/
+    ├── clippers-daily/    本地日记创建与“当日消息”视图
+    └── clippers-project/  从选中文字创建 task 笔记
+```
+
+服务器端不管理本地工作日志和附件，也不提供 PaperLab 桌面 App。PaperLab 只保留部署在服务器上的
+采集、数据管理和查询能力。本地能力由相互独立、最小权限的 Obsidian 插件提供。
 
 稳定边界是 SQLite/HTTP API 与 JSON/Markdown 日报产物，不向外部插件暴露 Python 内部模块。
 
@@ -36,8 +49,8 @@ set -a; source .env; set +a
 ## 控制台
 
 控制台提供历史日报与点赞反馈、来源启停和预检、结构化配置与高级 YAML、版本回滚、多个 SMTP
-发件人和收件人、主备模型、Git 状态、任务日志及 PaperLab 状态。完整 PaperLab 界面由认证网关
-代理到 `/paperlab/`。
+发件人和收件人、主备模型、Git 状态、任务日志及 PaperLab 状态。PaperLab 的云端采集与数据管理
+界面由认证网关代理到 `/paperlab/`；不维护本地 App、阅读器或桌面打包产物。
 
 大模型统一由监听 `127.0.0.1:8767` 的 OpenAI 兼容网关提供。Clippers 和 PaperLab 均使用
 `http://127.0.0.1:8767/v1` 与模型别名 `clippers-default`；网关默认路由到 SiliconFlow 的
@@ -62,6 +75,15 @@ set -a; source .env; set +a
 - `POST /api/jobs/code-sync`、`POST /api/jobs/code-repository-test`
 
 所有修改接口都要求登录会话和 CSRF token；正式发送和 PaperLab 同步还要求二次确认。
+
+## Obsidian 插件
+
+- `clippers-daily`：创建/打开当天日记，只维护“当日消息”区块；历史的“工作信息”保护标记会被
+  解除，正文原样保留，之后完全由用户编辑。
+- `clippers-project`：仅提供“从选定文字增加 task 笔记”。它不监听文档变化，不同步任务状态，
+  不归档、移动或删除附件，也不生成工作日志。
+
+插件目录中的 `main.js` 和 `manifest.json` 可以直接复制到 vault 的 `.obsidian/plugins/<id>/`。
 
 ## 生产部署
 
@@ -88,4 +110,4 @@ systemd、Nginx 和发布脚本位于 `deploy/`。生产目录采用：
 node --check src/clippers_daily/static/console.js
 ```
 
-仓库不提交 `.env`、密钥、数据库、日报产物、服务器日志或 Obsidian 插件源码。
+仓库不提交 `.env`、密钥、数据库、日报产物或服务器日志；两个 Obsidian 插件源码随仓库维护。

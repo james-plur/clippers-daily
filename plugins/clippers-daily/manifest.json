@@ -1,0 +1,9 @@
+{
+  "id": "clippers-daily",
+  "name": "Clippers Daily",
+  "version": "1.0.0",
+  "minAppVersion": "1.5.0",
+  "description": "Create local daily notes and maintain the Clippers information view.",
+  "author": "Clippers",
+  "isDesktopOnly": false
+}

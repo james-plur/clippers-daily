@@ -1,0 +1,9 @@
+{
+  "id": "clippers-project",
+  "name": "Clippers Project",
+  "version": "1.0.0",
+  "minAppVersion": "1.5.0",
+  "description": "Create a task note from selected text in a project note.",
+  "author": "Clippers",
+  "isDesktopOnly": false
+}

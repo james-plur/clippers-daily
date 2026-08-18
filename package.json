@@ -1,0 +1,8 @@
+{
+  "name": "clippers-monorepo",
+  "private": true,
+  "scripts": {
+    "test:plugins": "node --test plugins/*/test/*.test.js",
+    "check:plugins": "node --check plugins/clippers-daily/main.js && node --check plugins/clippers-project/main.js"
+  }
+}

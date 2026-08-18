@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "clippers-daily"
+name = "clippers-server"
 version = "0.2.0"
-description = "AI infrastructure daily digest pipeline and administration console"
+description = "Clippers cloud collection, digest, console, and PaperLab integration service"
 requires-python = ">=3.12"
 dependencies = [
   "beautifulsoup4>=4.12,<5",

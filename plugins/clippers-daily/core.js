@@ -36,6 +36,27 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function parseReadingList(clippersPath, envFile) {
+  const { exec } = require('child_process');
+  return new Promise((resolve, reject) => {
+    exec(
+      `set -a; . ${envFile} 2>/dev/null; set +a; cd ${clippersPath} && ./.venv/bin/clippers knowledge sync --safari-only 2>/dev/null`,
+      { timeout: 600000, maxBuffer: 10 * 1024 * 1024 },
+      (error, stdout) => {
+        if (error) {
+          reject(new Error(String(error.message || error).split('\n')[0].slice(0, 200)));
+          return;
+        }
+        const match = stdout.match(/\{[\s\S]*\}\s*$/);
+        if (match) {
+          try { resolve(JSON.parse(match[0])); return; } catch (_) {}
+        }
+        resolve({ safari_outputs: [], raw: stdout.slice(-500) });
+      },
+    );
+  });
+}
+
 module.exports = {
   INFORMATION_START,
   INFORMATION_END,
@@ -47,4 +68,5 @@ module.exports = {
   unwrapLegacyWorkBlock,
   ensureInformationBlock,
   normalizeDailyNote,
+  parseReadingList,
 };

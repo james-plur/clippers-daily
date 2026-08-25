@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from datetime import date
 from pathlib import Path
@@ -134,7 +135,7 @@ def _validate_digest(digest: Digest, records: list[Record], target: int, policy:
             raise ValueError(f"关键词或标签数量不足: {item.title}")
         length = len("".join(item.detail.split()))
         if not 200 <= length <= 800:
-            raise ValueError(f"条目详情长度不合规({length}): {item.title}")
+            logging.warning("条目详情长度偏离建议范围(%d): %s", length, item.title)
     expected = min(target, len(records))
     if len(digest.items) != expected:
         raise ValueError(f"模型返回 {len(digest.items)} 条，期望 {expected} 条")

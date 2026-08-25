@@ -186,7 +186,18 @@ def repair_failed_digest(settings: Settings, store: Store) -> dict | None:
         "INSERT INTO maintenance_runs(started_at,target_type,target_id,trigger,status) VALUES (?,?,?,?,?)",
         (started.isoformat(), "digest", today, "daily_run_failed", "running")); repair_id = cursor.lastrowid; store.db.commit()
     try:
-        prompt = "分析日报失败原因并给下一次编辑生成一段简短、可执行的修复指令。不要修改事实和硬配额。错误：" + str(row["error"])
+        # Include the actual validation rules so the LLM does not misdiagnose
+        # the direction of a length violation (e.g. treating "too short" as
+        # "too long" and making the problem worse across repair attempts).
+        rules = (
+            "日报质量校验规则：每条详情去空白后长度须在 200-800 字之间；"
+            "关键词 3-8 个，标签 2-6 个；条目数须等于目标数；"
+            "候选中存在 media 或 paper 时必须选择该类别。"
+        )
+        prompt = (
+            "分析日报失败原因并给下一次编辑生成一段简短、可执行的修复指令。"
+            "不要修改事实和硬配额。" + rules + "错误：" + str(row["error"])
+        )
         diagnosis = json_completion([{"role":"user","content":prompt}], max_tokens=1000, config=settings.runtime.get("llm", {}))
         hint = settings.database.parent / "digest_repair_prompt.txt"; hint.write_text(diagnosis, encoding="utf-8")
         from .app import run_daily
